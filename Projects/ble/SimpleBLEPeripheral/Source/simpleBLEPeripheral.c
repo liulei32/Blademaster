@@ -444,32 +444,41 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
   P0SEL = 0; // Configure Port 0 as GPIO
   P1SEL = 0; // Configure Port 1 as GPIO
   P2SEL = 0; // Configure Port 2 as GPIO
-/*
-  P0DIR = 0x89; // Port 0 pins P0.1 batCHGn, P0.2 batPGn, P0.4 smkSENSOR, P0.5 wlCHGn, P0_6 TOUCH as inputs
-                // Port 0 pins P0.0 batEN/SET, P0.3 smkON, P0.7 unused as outputs
-  P1DIR = 0xFF; // All port 1 pins (P1.0-P1.7) as output
-  P2DIR = 0x1F; // All port 1 pins (P2.0-P2.4) as output
+  
 
-  P0 = 0x76; // All pins on port 0 to low except for inputs
+  P0DIR = 0x86; // O P0.7 smkON, PM2.5 sensor enable
+                // I P0.6 smkSENSOR, PM2.5 sensor output (Analog)
+                // I P0.5 V_Measure, Battery voltage measurement (Analog)
+                // I P0.4 batPGn, USB charger (BQ25040) power good
+                // I P0.3 batCHGn, USB charger (BQ25040) charge done
+                // O P0.2 batEN/SET, USB charger (BQ25040) enable/mode select
+                // O P0.1 mtCSn, Temperature and moisture sensor (Si7015) chip select
+                // I P0.0 TOUCH, Touch sensor (PCF8883) output
+  P1DIR = 0xFF; // O P1.7 accINT (CMA3000) Initialize later
+                // O P1.6 Unused
+                // O P1.5 accMOSI (CMA3000) Initialize later
+                // O P1.4 accMISO (CMA3000) Initialize later
+                // O P1.3 accCLK (CMA3000) Initialize later
+                // O P1.2 accCBS (CMA3000) Initialize later
+                // O P1.1 P1_1, LED1
+                // O P1.0 P1_0, LED0
+  P2DIR = 0x1F; // O P2.4 Unused
+                // O P2.3 Unused
+                // O P2.2 DC
+                // O P2.1 DD
+                // O P2.0 Unused
+
+  P0 = 0x79; // All pins on port 0 to low except for inputs
   P1 = 0;   // All pins on port 1 to low
   P2 = 0;   // All pins on port 2 to low
-*/
-  
-  P0DIR = 0xFF;
-  P1DIR = 0xFF; // All port 1 pins (P1.0-P1.7) as output
-  P2DIR = 0x1F; // All port 1 pins (P2.0-P2.4) as output
 
-  P0 = 0; // All pins on port 0 to low except for inputs
-  P1 = 0;   // All pins on port 1 to low
-  P2 = 0;   // All pins on port 2 to low
-  
 #endif // #if defined( CC2540_MINIDK )
 
   // Initialize the ADC for battery reads
   HalAdcInit();
   
   // Initialize the LEDs
-  //ArcherLedInit();
+  BMLedInit();
   
 /*  
   for (uint8 i=0; i<12; i++)

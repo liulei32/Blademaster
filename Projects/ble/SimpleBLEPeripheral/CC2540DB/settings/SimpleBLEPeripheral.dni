@@ -1,5 +1,5 @@
 [DebugChecksum]
-Checksum=-412682537
+Checksum=-1461767863
 [Stack]
 FillEnabled=0
 OverflowWarningsEnabled=1
@@ -19,13 +19,13 @@ Show=1 1
 Sort=4 0
 [watch_formats]
 Fmt0={W}0:value	3	0
+[TermIOLog]
+LoggingEnabled=_ 0
+LogFile=_ ""
 [Log file]
 LoggingEnabled=_ 0
 LogFile=_ ""
 Category=_ 0
-[TermIOLog]
-LoggingEnabled=_ 0
-LogFile=_ ""
 [Breakpoints]
 Bp0=_ "STD_CODE" "{$PROJ_DIR$\..\..\..\..\Components\hal\target\CC2540EB\hal_key.c}.504.8" 0 0 0 0 "" 0 ""
 Bp1=_ "STD_CODE" "{$PROJ_DIR$\..\..\Profiles\SimpleProfile\simpleGATTprofile.c}.406.54" 0 0 0 0 "" 0 ""

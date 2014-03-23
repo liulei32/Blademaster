@@ -124,9 +124,9 @@ extern uint8 HalLedGetState ( void );
 extern void ArcherLedSet(uint8 ledIndex, uint8 color, uint8 numBlinks, uint8 offsetTime, uint8 onTime, uint8 offTime);
 
 /*
- * Archer LED Initialize
+ * BM LED Initialize
  */
-extern void ArcherLedInit();
+extern void BMLedInit();
 
 /*
  * Set Archer Hour LED

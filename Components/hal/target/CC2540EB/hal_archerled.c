@@ -688,7 +688,7 @@ void HalLedExitSleep( void )
 }
 
 /***************************************************************************************************
- * @fn      ArcherLedInit
+ * @fn      BMLedInit
  *
  * @brief   Initial clock LED and color LED
  *
@@ -696,21 +696,67 @@ void HalLedExitSleep( void )
  *
  * @return  none
  ***************************************************************************************************/
-void ArcherLedInit()
+void BMLedInit()
 {
-  // Turn off LED power, P2_0 = 0
-  P2_0 = 0;
-  // Initialize Upper PCA9532
-  HalI2CInit(0x60, I2CCLOCK);
-  uint8 wdata0[9] = {0x12, 0x00, BRIGHTNESS_9532, 0x00, BRIGHTNESS_9532, 0x00, 0x00, 0x00, 0x00};
-  HalI2CWrite(9, wdata0);
+  // Initialize Digit TLC59116
+  HalI2CInit(0x62, I2CCLOCK);
+  uint8 wdata0[3] = {0x80, 0x01, 0x00};
+  HalI2CWrite(3, wdata0);
+  // Initialize Color TLC59116
+  HalI2CInit(0x63, I2CCLOCK);
+  uint8 wdata1[3] = {0x80, 0x01, 0x00};
+  HalI2CWrite(3, wdata1);
+  // Initialize TLC59108
+  HalI2CInit(0x41, I2CCLOCK);
+  uint8 wdata2[11] = {0x80, 0x01, 0x00, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08};
+  HalI2CWrite(11, wdata2);
+  
+  // Initialize Digit TLC59116
+  HalI2CInit(0x62, I2CCLOCK);
+  uint8 wdata3[5] = {0x94, 0x50, 0x50, 0x50, 0x50}; // LED output control
+  HalI2CWrite(5, wdata3);
+  // Initialize Color TLC59116
+  HalI2CInit(0x63, I2CCLOCK);
+  uint8 wdata4[5] = {0x94, 0x55, 0x55, 0x55, 0x55}; // LED output control
+  HalI2CWrite(5, wdata4);
+  // Initialize TLC59108
+  HalI2CInit(0x41, I2CCLOCK);
+  uint8 wdata5[3] = {0x8C, 0xA0, 0xA0}; // LED output control
+  HalI2CWrite(3, wdata5);
+  
+  
+  
+  /*  
+  // Initialize Digit TLC59116
+  HalI2CInit(0x62, I2CCLOCK);
+  uint8 wdata0[25] = {0x80, 
+                     0x01, 0x00, // Mode0, Mode1
+                     0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, // PWM0 - PWM15
+                     0xFF, 0xFF, // Group Control
+                     //0x55, 0x55, 0x55, 0x55}; // LED output control
+                     0x00, 0x00, 0x00, 0x00}; // LED output control
+  HalI2CWrite(25, wdata0);
+  
+  // Initialize Color TLC59116
+  HalI2CInit(0x63, I2CCLOCK);
+  uint8 wdata1[25] = {0x80, 
+                     0x01, 0x00, // Mode0, Mode1
+                     0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, // PWM0 - PWM15
+                     0xFF, 0xFF, // Group Control
+                     //0x55, 0x55, 0x55, 0x55}; // LED output control
+                     0x00, 0x00, 0x00, 0x00}; // LED output control
+  HalI2CWrite(25, wdata1);
+*/
+  
+  
+  /*
   // Initialize Lower PCA9532
   HalI2CInit(0x67, I2CCLOCK);
   HalI2CWrite(9, wdata0);
   // Initialize Color PCA9632
   HalI2CInit(0x62, I2CCLOCK);
   uint8 wdata1[10] = {0x80, 0x10, 0x01, BRIGHTNESS_9632_IND, BRIGHTNESS_9632_IND, BRIGHTNESS_9632_IND, 0x00, BRIGHTNESS_9632_GRP, 0x00, 0x00};
-  HalI2CWrite(10, wdata1);
+  HalI2CWrite(10, wdata1);*/
 }
 
 /***************************************************************************************************
