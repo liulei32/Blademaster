@@ -92,7 +92,7 @@
 /*********************************************************************
  * COMPILE OPTIONS
  */
-#define ARCHERLED_DEBUG 1
+#define BLADEMASTER_DEBUG 1
 
 
 
@@ -479,28 +479,8 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
   
   // Initialize the LEDs
   BMLedInit();
-  
-/*  
-  for (uint8 i=0; i<12; i++)
-  {
-    ArcherHourLedSet(i, 1);
-  }
-  for (uint8 i=0; i<16; i++)
-  {
-    ArcherMinLedSet(i, 1);
-  }
-  ArcherClockLedUpdate();
-*/  
-  // Color PCA9632
-  /*
-  HalI2CInit(0x62, i2cClock_123KHZ);
-  uint8 wdata1[10] = {0x80, 0x00, 0x01, 0xfc, 0xfc, 0xfc, 0x00, 0x00, 0x00};
-  HalI2CWrite(10, wdata1);
-  HalI2CInit(0x62, i2cClock_144KHZ);
-  uint8 wdata2[2] = {0x08, 0x55};
-  HalI2CWrite(2, wdata2);
-  */
-  
+  BMShowColor(0,0,0xff,0x01);
+  BMShowHum(4);
   
 #if (defined HAL_LCD) && (HAL_LCD == TRUE)
 
@@ -815,12 +795,9 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
           HalLcdWriteString( bdAddr2Str( ownAddress ),  HAL_LCD_LINE_2 );
           HalLcdWriteString( "Initialized",  HAL_LCD_LINE_3 );
         #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-        
-        #if defined ARCHERLED_DEBUG
-          for (uint8 i=0; i<16; i++)
-            ArcherMinLedSet(i, 0);
-          ArcherMinLedSet(4, 1);
-          ArcherClockLedUpdate();
+          
+        #if defined BLADEMASTER_DEBUG
+          BMShowDigit(90);
         #endif
       }
       break;
@@ -831,11 +808,8 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
           HalLcdWriteString( "Advertising",  HAL_LCD_LINE_3 );
         #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
           
-        #if defined ARCHERLED_DEBUG
-          for (uint8 i=0; i<16; i++)
-            ArcherMinLedSet(i, 0);
-          ArcherMinLedSet(5, 1);
-          ArcherClockLedUpdate();
+        #if defined BLADEMASTER_DEBUG
+          BMShowDigit(91);
         #endif
       }
       break;
@@ -846,11 +820,8 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
           HalLcdWriteString( "Connected",  HAL_LCD_LINE_3 );
         #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
           
-        #if defined ARCHERLED_DEBUG
-          for (uint8 i=0; i<16; i++)
-            ArcherMinLedSet(i, 0);
-          ArcherMinLedSet(6, 1);
-          ArcherClockLedUpdate();
+        #if defined BLADEMASTER_DEBUG
+          BMShowDigit(92);
         #endif
           
         uint8 appConnect;
@@ -882,11 +853,8 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
       break;
     case GAPROLE_CONNECTED_ADV:
       {
-        #if defined ARCHERLED_DEBUG
-          for (uint8 i=0; i<16; i++)
-            ArcherMinLedSet(i, 0);
-          ArcherMinLedSet(7, 1);
-          ArcherClockLedUpdate();
+        #if defined BLADEMASTER_DEBUG
+          BMShowDigit(93);
         #endif
           
         HalLedSet(HAL_LED_1, HAL_LED_MODE_BLINK );
@@ -933,11 +901,8 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
           HalLcdWriteString( "Error",  HAL_LCD_LINE_3 );
         #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
           
-        #if defined ARCHERLED_DEBUG
-          for (uint8 i=0; i<16; i++)
-            ArcherMinLedSet(i, 0);
-          ArcherMinLedSet(8, 1);
-          ArcherClockLedUpdate();
+        #if defined BLADEMASTER_DEBUG
+          BMShowDigit(94);
         #endif
       }
       break;

@@ -59,12 +59,15 @@
 #define LEDCLR_RED      2
 #define LEDCLR_YELLOW   3
 
-// [7:0]
-#define BRIGHTNESS_9532 0xff
-// [7:2]
-#define BRIGHTNESS_9632_IND 0xfc
-// [7:4]
-#define BRIGHTNESS_9632_GRP 0xf0
+#define ADDRESS_DIGIT_TLC59116 0x62
+#define ADDRESS_COLOR_TLC59116 0x63
+#define ADDRESS_TLC59108 0x41
+#define BRIGHTNESS_DIGIT 0x10
+#define BRIGHTNESS_SIGN 0x08
+#define BRIGHTNESS_GRP_DIGIT 0x80
+#define BRIGHTNESS_GRP_COLOR 0x08
+#define BRIGHTNESS_HUM 0x02
+
 
 #define I2CCLOCK i2cClock_123KHZ
 
@@ -113,10 +116,11 @@ static uint8 preBlinkState;            // Original State before going to blink m
   static HalLedStatus_t HalLedStatusControl;
 #endif
 
-static uint32 archer9532 = 0; // [upperLED15->0, lowerLED15->0]
-static uint32 lastArcher9532 = 0;
-static uint8 archerHourTable[12] = {23, 20, 18, 16, 12, 10, 7, 5, 2, 0, 30, 27};
-static uint8 archerMinTable[16] = {22, 21, 19, 17, 14, 11, 9, 8, 6, 4, 3, 1, 31, 29, 28, 26};
+static uint16 onesPlace[10] = {0x07E0, 0x0180, 0x06D0, 0x03D0, 0x01B0, 0x0370, 0x0770, 0x01C0, 0x07F0, 0x03F0};
+static uint16 tensPlace[10] = {0x380E, 0x0808, 0x300D, 0x180D, 0x080B, 0x1807, 0x3807, 0x080C, 0x380F, 0x180F};
+static uint8 humByte0[7] = {0x00, 0x30, 0x30, 0x3C, 0x3C, 0x3F, 0xFF};
+static uint8 humByte1[7] = {0x00, 0x00, 0x0C, 0x0C, 0x0F, 0x0F, 0x0F};
+
 
 /***************************************************************************************************
  *                                            LOCAL FUNCTION
@@ -699,159 +703,123 @@ void HalLedExitSleep( void )
 void BMLedInit()
 {
   // Initialize Digit TLC59116
-  HalI2CInit(0x62, I2CCLOCK);
-  uint8 wdata0[3] = {0x80, 0x01, 0x00};
-  HalI2CWrite(3, wdata0);
-  // Initialize Color TLC59116
-  HalI2CInit(0x63, I2CCLOCK);
-  uint8 wdata1[3] = {0x80, 0x01, 0x00};
-  HalI2CWrite(3, wdata1);
-  // Initialize TLC59108
-  HalI2CInit(0x41, I2CCLOCK);
-  uint8 wdata2[11] = {0x80, 0x01, 0x00, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08};
-  HalI2CWrite(11, wdata2);
-  
-  // Initialize Digit TLC59116
-  HalI2CInit(0x62, I2CCLOCK);
-  uint8 wdata3[5] = {0x94, 0x50, 0x50, 0x50, 0x50}; // LED output control
-  HalI2CWrite(5, wdata3);
-  // Initialize Color TLC59116
-  HalI2CInit(0x63, I2CCLOCK);
-  uint8 wdata4[5] = {0x94, 0x55, 0x55, 0x55, 0x55}; // LED output control
-  HalI2CWrite(5, wdata4);
-  // Initialize TLC59108
-  HalI2CInit(0x41, I2CCLOCK);
-  uint8 wdata5[3] = {0x8C, 0xA0, 0xA0}; // LED output control
-  HalI2CWrite(3, wdata5);
-  
-  
-  
-  /*  
-  // Initialize Digit TLC59116
-  HalI2CInit(0x62, I2CCLOCK);
-  uint8 wdata0[25] = {0x80, 
-                     0x01, 0x00, // Mode0, Mode1
-                     0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, // PWM0 - PWM15
-                     0xFF, 0xFF, // Group Control
-                     //0x55, 0x55, 0x55, 0x55}; // LED output control
+  uint8 wdata_digit[25] = {0x80, 
+                     0x11, 0x00, // Mode0, Mode1
+                     BRIGHTNESS_DIGIT, BRIGHTNESS_DIGIT, BRIGHTNESS_DIGIT, BRIGHTNESS_DIGIT,
+                     BRIGHTNESS_DIGIT, BRIGHTNESS_DIGIT, BRIGHTNESS_DIGIT, BRIGHTNESS_DIGIT,
+                     BRIGHTNESS_DIGIT, BRIGHTNESS_DIGIT, BRIGHTNESS_DIGIT, BRIGHTNESS_DIGIT,
+                     BRIGHTNESS_DIGIT, BRIGHTNESS_DIGIT, BRIGHTNESS_DIGIT, BRIGHTNESS_SIGN, // PWM0 - PWM15
+                     BRIGHTNESS_GRP_DIGIT, 0x00, // Group Control
                      0x00, 0x00, 0x00, 0x00}; // LED output control
-  HalI2CWrite(25, wdata0);
-  
+  HalI2CInit(ADDRESS_DIGIT_TLC59116, I2CCLOCK);
+  HalI2CWrite(25, wdata_digit);
   // Initialize Color TLC59116
-  HalI2CInit(0x63, I2CCLOCK);
-  uint8 wdata1[25] = {0x80, 
-                     0x01, 0x00, // Mode0, Mode1
-                     0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, // PWM0 - PWM15
-                     0xFF, 0xFF, // Group Control
-                     //0x55, 0x55, 0x55, 0x55}; // LED output control
+  uint8 wdata_color[25] = {0x80, 
+                     0x11, 0x00, // Mode0, Mode1
+                     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // PWM0 - PWM15
+                     BRIGHTNESS_GRP_COLOR, 0x00, // Group Control
                      0x00, 0x00, 0x00, 0x00}; // LED output control
-  HalI2CWrite(25, wdata1);
-*/
-  
-  
-  /*
-  // Initialize Lower PCA9532
-  HalI2CInit(0x67, I2CCLOCK);
-  HalI2CWrite(9, wdata0);
-  // Initialize Color PCA9632
-  HalI2CInit(0x62, I2CCLOCK);
-  uint8 wdata1[10] = {0x80, 0x10, 0x01, BRIGHTNESS_9632_IND, BRIGHTNESS_9632_IND, BRIGHTNESS_9632_IND, 0x00, BRIGHTNESS_9632_GRP, 0x00, 0x00};
-  HalI2CWrite(10, wdata1);*/
+  HalI2CInit(ADDRESS_COLOR_TLC59116, I2CCLOCK);
+  HalI2CWrite(25, wdata_color);
+  // Initialize TLC59108
+  uint8 wdata_hum[11] = {0x80,
+                      0x11, 0x00,
+                      BRIGHTNESS_HUM, BRIGHTNESS_HUM, BRIGHTNESS_HUM, BRIGHTNESS_HUM,
+                      BRIGHTNESS_HUM, BRIGHTNESS_HUM, BRIGHTNESS_HUM, BRIGHTNESS_HUM};  // PWM0 - PWM7
+  HalI2CInit(ADDRESS_TLC59108, I2CCLOCK);
+  HalI2CWrite(11, wdata_hum);
 }
 
 /***************************************************************************************************
- * @fn      ArcherHourLedSet
+ * @fn      BMShowDigit
  *
- * @brief   Set Archer Hour LED
+ * @brief   Set BM Digit LED
  *
  * @param   none
  *
  * @return  none
  ***************************************************************************************************/
-void ArcherHourLedSet(uint8 hour, uint8 value)
+int8 BMShowDigit(int8 num)
 {
-  if (hour<12)
+  // Set Digits
+  uint16 ledToSet = 0;
+  uint8 ones, tens;
+  if (num>99 || num<-99)
+    return -1;
+  if (num<0)
   {
-    uint32 ledToSet = 0x01;
-    ledToSet = ledToSet << archerHourTable[hour];
-    if (value)
-      archer9532 |= ledToSet;
-    else
-      archer9532 &= !ledToSet;
+    num = -num;
+    ledToSet |= 0x8000;
   }
-}
-
-/***************************************************************************************************
- * @fn      ArcherMinLedSet
- *
- * @brief   Set Archer Min LED
- *
- * @param   none
- *
- * @return  none
- ***************************************************************************************************/
-void ArcherMinLedSet(uint8 min, uint8 value)
-{
-  if (min<16)
+  ones = num % 10;
+  tens = num / 10;
+  ledToSet |= onesPlace[ones];
+  ledToSet |= tensPlace[tens];
+  // Get I2C code
+  uint8 wdata[5] = {0x94, 0x00, 0x00, 0x00, 0x00};
+  for (uint8 wdata_B=1; wdata_B<5; wdata_B++)
   {
-    uint32 ledToSet = 0x01;
-    ledToSet = ledToSet << archerMinTable[min];
-    if (value)
-      archer9532 |= ledToSet;
-    else
-      archer9532 &= !ledToSet;
-  }
-}
-
-/***************************************************************************************************
- * @fn      ArcherClockLedUpdate
- *
- * @brief   Update Archer Clock LED
- *
- * @param   none
- *
- * @return  none
- ***************************************************************************************************/
-void ArcherClockLedUpdate()
-{
-  // Upper LED
-  if ((archer9532 & 0xffff0000) != (lastArcher9532 & 0xffff0000))
-  {
-    uint16 upperLED = archer9532 >> 16;
-    uint8 wdata[5] = {0x16, 0x00, 0x00, 0x00, 0x00};
-    for (uint8 wdata_B=1; wdata_B<5; wdata_B++)
+    for (uint8 wdata_led=0; wdata_led<4; wdata_led++)
     {
-      for (uint8 wdata_led=0; wdata_led<4; wdata_led++)
-      {
-        wdata[wdata_B] = wdata[wdata_B] >> 2;
-        if (upperLED & 0x0001)
-          wdata[wdata_B] |= 0x80;
-        upperLED = upperLED >> 1;
-      }
+      wdata[wdata_B] = wdata[wdata_B] >> 2;
+      if (ledToSet & 0x0001)
+        wdata[wdata_B] |= 0xC0;
+      ledToSet = ledToSet >> 1;
     }
-    HalI2CInit(0x60, I2CCLOCK);
-    HalI2CWrite(5, wdata);
-  }
-  // Lower LED
-  if ((archer9532 & 0x0000ffff) != (lastArcher9532 & 0x0000ffff))
-  {
-    uint16 lowerLED = archer9532 & 0xffff;
-    uint8 wdata[5] = {0x16, 0x00, 0x00, 0x00, 0x00};
-    for (uint8 wdata_B=1; wdata_B<5; wdata_B++)
-    {
-      for (uint8 wdata_led=0; wdata_led<4; wdata_led++)
-      {
-        wdata[wdata_B] = wdata[wdata_B] >> 2;
-        if (lowerLED & 0x0001)
-          wdata[wdata_B] |= 0x80;
-        lowerLED = lowerLED >> 1;
-      }
-    }
-    HalI2CInit(0x67, I2CCLOCK);
-    HalI2CWrite(5, wdata);
-  }
-  lastArcher9532 = archer9532;
+  }  
+  // Turn ON digit TLC59116
+  uint8 wdata_on[2] = {0x00, 0x01}; // LED output control
+  HalI2CInit(ADDRESS_DIGIT_TLC59116, I2CCLOCK);
+  HalI2CWrite(2, wdata_on);
+  // Program digit
+  HalI2CInit(ADDRESS_DIGIT_TLC59116, I2CCLOCK);
+  HalI2CWrite(5, wdata);
+  return 0;
 }
 
+
 /***************************************************************************************************
-***************************************************************************************************/
+ * @fn      BMShowColor
+ *
+ * @brief   Set BM Color LED
+ *
+ * @param   none
+ *
+ * @return  none
+ ***************************************************************************************************/
+int8 BMShowColor(uint8 red, uint8 green, uint8 blue, uint8 brightness)
+{
+  HalI2CInit(ADDRESS_COLOR_TLC59116, I2CCLOCK);
+  uint8 wdata_color[25] = {0x80, 
+                     0x01, 0x00, // Mode0, Mode1
+                     red, blue, green, 0x00, red, blue, green, 0x00, red, blue, green, 0x00, red, blue, green, 0x00, // PWM0 - PWM15
+                     brightness, 0x00, // Group Control
+                     0xFF, 0xFF, 0xFF, 0xFF}; // LED output control
+  HalI2CWrite(25, wdata_color);
+  return 0;
+}
+
+
+/***************************************************************************************************
+ * @fn      BMShowHum
+ *
+ * @brief   Set BM Humility LED
+ *
+ * @param   none
+ *
+ * @return  none
+ ***************************************************************************************************/
+int8 BMShowHum(uint8 hum)
+{
+  if (hum>6)
+    return -1;
+  // Turn ON humility TLC59108
+  uint8 wdata_on[2] = {0x00, 0x01}; // LED output control
+  HalI2CInit(ADDRESS_TLC59108, I2CCLOCK);
+  HalI2CWrite(2, wdata_on);
+  //
+  uint8 wdata_hum[3] = {0x8C, humByte0[hum], humByte1[hum]};
+  HalI2CInit(ADDRESS_TLC59108, I2CCLOCK);
+  HalI2CWrite(3, wdata_hum);
+  return 0;
+}

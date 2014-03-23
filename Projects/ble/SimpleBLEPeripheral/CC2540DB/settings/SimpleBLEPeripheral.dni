@@ -1,5 +1,5 @@
 [DebugChecksum]
-Checksum=-1461767863
+Checksum=626432171
 [Stack]
 FillEnabled=0
 OverflowWarningsEnabled=1
@@ -22,10 +22,6 @@ Fmt0={W}0:value	3	0
 [TermIOLog]
 LoggingEnabled=_ 0
 LogFile=_ ""
-[Log file]
-LoggingEnabled=_ 0
-LogFile=_ ""
-Category=_ 0
 [Breakpoints]
 Bp0=_ "STD_CODE" "{$PROJ_DIR$\..\..\..\..\Components\hal\target\CC2540EB\hal_key.c}.504.8" 0 0 0 0 "" 0 ""
 Bp1=_ "STD_CODE" "{$PROJ_DIR$\..\..\Profiles\SimpleProfile\simpleGATTprofile.c}.406.54" 0 0 0 0 "" 0 ""
@@ -34,6 +30,10 @@ Count=3
 [ChipconEmu]
 Stop timers on halt=0
 Leave target running=1
+[Log file]
+LoggingEnabled=_ 0
+LogFile=_ ""
+Category=_ 0
 [Aliases]
 Count=0
 SuppressDialog=0

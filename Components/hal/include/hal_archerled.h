@@ -129,19 +129,20 @@ extern void ArcherLedSet(uint8 ledIndex, uint8 color, uint8 numBlinks, uint8 off
 extern void BMLedInit();
 
 /*
- * Set Archer Hour LED
+ * BM LED Show Digit
  */
-extern void ArcherHourLedSet(uint8 hour, uint8 value);
+int8 BMShowDigit(int8 num);
 
 /*
- * Set Archer Min LED
+ * BM LED Show Color
  */
-extern void ArcherMinLedSet(uint8 hour, uint8 value);
+int8 BMShowColor(uint8 red, uint8 green, uint8 blue, uint8 brightness);
 
 /*
- * Update Archer Clock LED
+ * BM LED Show Hum
  */
-extern void ArcherClockLedUpdate();
+int8 BMShowHum(uint8 hum);
+
 /*********************************************************************
 *********************************************************************/
 
