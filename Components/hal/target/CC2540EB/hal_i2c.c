@@ -101,11 +101,14 @@ typedef enum
 
 // Must clear SI before setting STA and then STA must be manually cleared.
 #define I2C_STRT() st (             \
-  I2CCFG &= ~I2C_SI;                \
-  I2CCFG |= I2C_STA;                \
+  I2CCFG = (I2CCFG & ~I2C_SI) | I2C_STA; \
   while ((I2CCFG & I2C_SI) == 0);   \
   I2CCFG &= ~I2C_STA; \
 )
+
+//I2CCFG = (I2CCFG & ~I2C_SI) | I2C_STA; \
+//I2CCFG &= ~I2C_SI;                \
+//I2CCFG |= I2C_STA;                \
 
 // Must set STO before clearing SI.
 #define I2C_STOP() st (             \
@@ -148,14 +151,9 @@ static uint8 i2cAddr;  // Target Slave address pre-shifted up by one leaving RD/
  */
 static uint8 i2cMstStrt(uint8 RD_WRn)
 {
-  //I2C_STRT();
-
-  I2CCFG &= ~I2C_SI;                
-  I2CCFG |= I2C_STA;                
-  while ((I2CCFG & I2C_SI) == 0);   
-  I2CCFG &= ~I2C_STA; 
+  I2C_STRT();
     
-  if (I2CSTAT == mstStarted) /* A start condition has been transmitted */
+  if ((I2CSTAT == mstStarted)  || (I2CSTAT == mstRepStart))/* A start condition has been transmitted */
   {
     I2C_WRITE(i2cAddr | RD_WRn);
   }
@@ -293,6 +291,56 @@ uint8 HalI2CWrite(uint8 len, uint8 *pBuf)
 
   I2C_STOP();
 
+  return len;
+}
+
+/**************************************************************************************************
+ * @fn          HalI2CWriteNoStop
+ *
+ * @brief       Write to the I2C bus as a Master.
+ *
+ * input parameters
+ *
+ * @param       len - Number of bytes to write.
+ * @param       pBuf - Pointer to the data buffer to write.
+ *
+ * output parameters
+ *
+ * None.
+ *
+ * @return      The number of bytes successfully written.
+ */
+uint8 HalI2CWriteNoStop(uint8 len, uint8 *pBuf)
+{
+  bool stp = false;
+  if (i2cMstStrt(0) != mstAddrAckW)
+  {
+    len = 0;
+    stp = true;
+  }
+
+  for (uint8 cnt = 0; cnt < len; cnt++)
+  {
+    I2C_WRITE(*pBuf++);
+
+    if (I2CSTAT != mstDataAckW)
+    {
+      if (I2CSTAT == mstDataNackW)
+      {
+        len = cnt + 1;
+      }
+      else
+      {
+        len = cnt;
+        stp = true;
+      }
+      break;
+    }
+  }
+
+  if (stp)
+    I2C_STOP();
+  
   return len;
 }
 

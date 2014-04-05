@@ -63,10 +63,10 @@
 #define ADDRESS_COLOR_TLC59116 0x63
 #define ADDRESS_TLC59108 0x41
 #define BRIGHTNESS_DIGIT 0x10
-#define BRIGHTNESS_SIGN 0x08
+#define BRIGHTNESS_SIGN 0x10
 #define BRIGHTNESS_GRP_DIGIT 0x80
 #define BRIGHTNESS_GRP_COLOR 0x08
-#define BRIGHTNESS_HUM 0x02
+#define BRIGHTNESS_HUM 0x04
 
 
 #define I2CCLOCK i2cClock_123KHZ
@@ -116,6 +116,8 @@ static uint8 preBlinkState;            // Original State before going to blink m
   static HalLedStatus_t HalLedStatusControl;
 #endif
 
+//static uint8 onesByte0[10] = {0xE0, 0x80, 0xD0, 0xD0, 0xB0, 0x70, 0x70, 0xC0, 0xF0, 0xF0};
+  
 static uint16 onesPlace[10] = {0x07E0, 0x0180, 0x06D0, 0x03D0, 0x01B0, 0x0370, 0x0770, 0x01C0, 0x07F0, 0x03F0};
 static uint16 tensPlace[10] = {0x380E, 0x0808, 0x300D, 0x180D, 0x080B, 0x1807, 0x3807, 0x080C, 0x380F, 0x180F};
 static uint8 humByte0[7] = {0x00, 0x30, 0x30, 0x3C, 0x3C, 0x3F, 0xFF};
@@ -794,7 +796,7 @@ int8 BMShowColor(uint8 red, uint8 green, uint8 blue, uint8 brightness)
                      0x01, 0x00, // Mode0, Mode1
                      red, blue, green, 0x00, red, blue, green, 0x00, red, blue, green, 0x00, red, blue, green, 0x00, // PWM0 - PWM15
                      brightness, 0x00, // Group Control
-                     0xFF, 0xFF, 0xFF, 0xFF}; // LED output control
+                     0x3F, 0x3F, 0x3F, 0x3F}; // LED output control
   HalI2CWrite(25, wdata_color);
   return 0;
 }

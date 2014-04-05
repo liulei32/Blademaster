@@ -113,8 +113,8 @@ extern "C"
 #define LED2_POLARITY                  ACTIVE_HIGH
 /* 3 - Motor */
 #define LED3_BV                        BV(6)
-#define LED3_SBIT                      P0_6
-#define LED3_DDR                       P0DIR
+#define LED3_SBIT                      P1_6
+#define LED3_DDR                       P1DIR
 #define LED3_POLARITY                  ACTIVE_HIGH
 
 //#ifdef HAL_BOARD_CC2530EB_REV17

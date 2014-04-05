@@ -74,6 +74,7 @@ typedef enum
 void     HalI2CInit(uint8 address, i2cClock_t clockRate);
 uint8    HalI2CRead(uint8 len, uint8 *pBuf);
 uint8    HalI2CWrite(uint8 len, uint8 *pBuf);
+uint8    HalI2CWriteNoStop(uint8 len, uint8 *pBuf);
 void     HalI2CDisable(void);
 
 #endif

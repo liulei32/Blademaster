@@ -92,7 +92,7 @@
 /*********************************************************************
  * COMPILE OPTIONS
  */
-#define BLADEMASTER_DEBUG 1
+//#define BLADEMASTER_DEBUG
 
 
 
@@ -109,7 +109,7 @@
 
 // How often to perform periodic event
 //#define SBP_PERIODIC_EVT_PERIOD                   5000
-#define SBP_PERIODIC_EVT_PERIOD                   1000
+#define SBP_PERIODIC_EVT_PERIOD                   500
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
 #define DEFAULT_ADVERTISING_INTERVAL          160
@@ -272,6 +272,13 @@ static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys );
 #if (defined HAL_LCD) && (HAL_LCD == TRUE)
 static char *bdAddr2Str ( uint8 *pAddr );
 #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
+
+
+
+static uint8 periodicR = 0;
+static uint8 periodicG = 85;
+static uint8 periodicB = 171;
+
 
 
 
@@ -472,6 +479,9 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
   P1 = 0;   // All pins on port 1 to low
   P2 = 0;   // All pins on port 2 to low
 
+  APCFG |= 0x60; // Set P0.6 smkSENSOR, P0.5 V_Measure to analog input
+  
+  
 #endif // #if defined( CC2540_MINIDK )
 
   // Initialize the ADC for battery reads
@@ -479,8 +489,6 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
   
   // Initialize the LEDs
   BMLedInit();
-  BMShowColor(0,0,0xff,0x01);
-  BMShowHum(4);
   
 #if (defined HAL_LCD) && (HAL_LCD == TRUE)
 
@@ -594,6 +602,7 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
 
     // Perform periodic application task
     performPeriodicTask();
+    
 
     return (events ^ SBP_PERIODIC_EVT);
   }
@@ -797,7 +806,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
         #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
           
         #if defined BLADEMASTER_DEBUG
-          BMShowDigit(90);
+          BMShowHum(0);
         #endif
       }
       break;
@@ -809,7 +818,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
         #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
           
         #if defined BLADEMASTER_DEBUG
-          BMShowDigit(91);
+          BMShowHum(1);
         #endif
       }
       break;
@@ -821,7 +830,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
         #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
           
         #if defined BLADEMASTER_DEBUG
-          BMShowDigit(92);
+          BMShowHum(2);
         #endif
           
         uint8 appConnect;
@@ -854,7 +863,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
     case GAPROLE_CONNECTED_ADV:
       {
         #if defined BLADEMASTER_DEBUG
-          BMShowDigit(93);
+          BMShowHum(3);
         #endif
           
         HalLedSet(HAL_LED_1, HAL_LED_MODE_BLINK );
@@ -902,7 +911,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
         #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
           
         #if defined BLADEMASTER_DEBUG
-          BMShowDigit(94);
+          BMShowHum(4);
         #endif
       }
       break;
@@ -941,6 +950,12 @@ static void rssiReadCB( int8 value )
    General_SetParameter( RSSI_VALUE, sizeof(int8), &value );
 }
 
+static void Wait4us(uint8 num)
+{
+  uint8 target = T3CNT + num;
+  while (T3CNT != target)
+    ;
+}
 
 /*********************************************************************
  * @fn      performPeriodicTask
@@ -973,6 +988,67 @@ static void performPeriodicTask( void )
      * function is called.
      */
   }
+  BMShowDigit(periodicR);
+  BMShowColor(periodicR, periodicG, periodicB, 0x02);
+  BMShowHum(periodicR%7);
+/*  
+  // Get PM2.5 data
+  HalAdcInit(); // Set ADC reference to VDD
+  
+  uint16 adc;
+  T3CTL |= 0xF0;
+  P0_7 = 1;
+  Wait4us(70);
+  adc = HalAdcRead (6, HAL_ADC_RESOLUTION_8); // smkSENSOR, Resolution = 8 bits
+  Wait4us(10);
+  P0_7 = 0;
+  
+  uint8 adc1 = (uint8)(adc);
+  BMShowDigit(adc1);
+*/  
+/*  
+  // Get Temperature data
+  
+  HalI2CInit(0x40, i2cClock_123KHZ);
+  uint8 wdata_start[2] = {0x03, 0x11};
+  uint8 res = HalI2CWrite(2, wdata_start);
+  
+  uint8 wdata_status = 0x00;
+  uint8 wdata_result = 0x01;
+  uint8 rdata = 0x01;
+  while ((rdata&0x01) == 0x01)
+  {
+    HalI2CInit(0x40, i2cClock_123KHZ);
+    HalI2CWriteNoStop(1, &wdata_status);
+    uint8 res = HalI2CRead(1, &rdata);
+    if ((res & 0x01) == 0x01)  
+      HalLedSet( HAL_LED_1, HAL_LED_MODE_ON );
+    else
+      HalLedSet( HAL_LED_1, HAL_LED_MODE_OFF );
+      
+    if ((res & 0x02) == 0x02)  
+      HalLedSet( HAL_LED_2, HAL_LED_MODE_ON );
+    else
+      HalLedSet( HAL_LED_2, HAL_LED_MODE_OFF );
+    Wait4us(200);
+  }
+  uint8 rdata_result[2];
+  HalI2CInit(0x40, i2cClock_123KHZ);
+  HalI2CWriteNoStop(1, &wdata_result);
+  HalI2CRead(2, rdata_result);
+  uint16 temperature = ((uint16)rdata_result[0])<<8;
+  temperature = temperature + rdata_result[1];
+  temperature = temperature >> 2;
+  int8 tempToShow = temperature/32-50;
+  BMShowDigit(tempToShow);
+  
+  
+  
+  
+*/
+  periodicR = periodicR + 8;
+  periodicG = periodicG + 19;
+  periodicB = periodicB + 23;
 }
 
 /*********************************************************************
