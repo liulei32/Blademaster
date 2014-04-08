@@ -93,7 +93,7 @@
  * COMPILE OPTIONS
  */
 //#define BLADEMASTER_DEBUG
-
+#define TEST_LED FALSE
 
 
 /*********************************************************************
@@ -152,6 +152,7 @@
 
 // How often (in ms) to read the accelerometer
 #define ACCEL_READ_PERIOD             50
+#define PM_READ_PERIOD                500
 
 // Default service discovery timer delay in ms
 #define DEFAULT_SVC_DISCOVERY_DELAY           500
@@ -250,6 +251,8 @@ static uint8 attDeviceName[GAP_DEVICE_NAME_LEN] = "Judgement Bindings  ";
 // Accelerometer Profile Parameters
 static uint8 accelEnabler = FALSE;
 static uint32 accelSamplePeriod = ACCEL_READ_PERIOD;      // Default=50ms
+static uint8 pmEnabler = FALSE;
+static uint32 pmSamplePeriod = PM_READ_PERIOD;          // Default=500ms
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -261,6 +264,7 @@ static void performPeriodicTask( void );
 static void generalProfileChangeCB( uint8 paramID );
 static void accelProfileChangeCB( uint8 paramID);
 static void accelRead( void );
+static void pmRead( void );
 static void ledProfileChangeCB(void);
 static void ancsProfileChangeCB( uint8 paramID );
 static void blectrlProfileChangeCB( uint8 paramID );
@@ -275,10 +279,11 @@ static char *bdAddr2Str ( uint8 *pAddr );
 
 
 
+#if (defined TEST_LED) && (TEST_LED == TRUE)
 static uint8 periodicR = 0;
 static uint8 periodicG = 85;
 static uint8 periodicB = 171;
-
+#endif
 
 
 
@@ -651,6 +656,27 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
     return (events ^ KFD_ACCEL_READ_EVT);
   }
   
+  if ( events & KFD_PM_READ_EVT )
+  {
+    if ( pmEnabler )
+    {
+      // Restart timer
+      if ( pmSamplePeriod )
+      {
+        osal_start_timerEx( simpleBLEPeripheral_TaskID, KFD_PM_READ_EVT, pmSamplePeriod );
+      }
+
+      // Read accelerometer data
+      pmRead();
+    }
+    else
+    {
+        // Stop the acceleromter
+      osal_stop_timerEx( simpleBLEPeripheral_TaskID, KFD_PM_READ_EVT);
+    }
+    return (events ^ KFD_PM_READ_EVT);
+  }  
+  
 #if defined ( PLUS_BROADCASTER )
   if ( events & SBP_ADV_IN_CONNECTION_EVT )
   {
@@ -988,25 +1014,12 @@ static void performPeriodicTask( void )
      * function is called.
      */
   }
+  
+#if (defined TEST_LED) && (TEST_LED == TRUE)
   BMShowDigit(periodicR);
   Accel_SetParameter(PM_RAW, sizeof ( uint8 ), &periodicR);
   BMShowColor(periodicR, periodicG, periodicB, 0x02);
   BMShowHum(periodicR%7);
-/*  
-  // Get PM2.5 data
-  HalAdcInit(); // Set ADC reference to VDD
-  
-  uint16 adc;
-  T3CTL |= 0xF0;
-  P0_7 = 1;
-  Wait4us(70);
-  adc = HalAdcRead (6, HAL_ADC_RESOLUTION_8); // smkSENSOR, Resolution = 8 bits
-  Wait4us(10);
-  P0_7 = 0;
-  
-  uint8 adc1 = (uint8)(adc);
-  BMShowDigit(adc1);
-*/  
 /*  
   // Get Temperature data
   
@@ -1043,13 +1056,12 @@ static void performPeriodicTask( void )
   int8 tempToShow = temperature/32-50;
   BMShowDigit(tempToShow);
   
-  
-  
-  
 */
   periodicR = periodicR + 8;
   periodicG = periodicG + 19;
   periodicB = periodicB + 23;
+  
+#endif
 }
 
 /*********************************************************************
@@ -1083,6 +1095,21 @@ static void accelProfileChangeCB( uint8 paramID )
     break;
   case ACCEL_SAMPLEPERIOD:
     Accel_GetParameter( ACCEL_SAMPLEPERIOD, &accelSamplePeriod );
+    break;
+  case PM_ENABLER:
+    Accel_GetParameter( PM_ENABLER, &pmEnabler );
+    if (pmEnabler)
+    {
+      // Setup timer for PM measurement task
+      osal_start_timerEx( simpleBLEPeripheral_TaskID, KFD_PM_READ_EVT, pmSamplePeriod );
+    } else
+    {
+      // Stop the PM measurement
+      osal_stop_timerEx( simpleBLEPeripheral_TaskID, KFD_PM_READ_EVT);
+    }
+    break;
+  case PM_SAMPLEPERIOD:
+    Accel_GetParameter( PM_SAMPLEPERIOD, &pmSamplePeriod );
     break;
   default:
     // Should not reach here!
@@ -1208,7 +1235,35 @@ static void accelRead( void )
     z = new_z;
     Accel_SetParameter(ACCEL_Z_ATTR, sizeof ( int8 ), &z);
   }
+}
 
+/*********************************************************************
+ * @fn      pmRead
+ *
+ * @brief   Called by the application to read accelerometer data
+ *          and put data in accelerometer profile
+ *
+ * @param   none
+ *
+ * @return  none
+ */
+static void pmRead( void )
+{
+  // Get PM2.5 data
+  HalAdcInit(); // Set ADC reference to VDD
+  
+  static uint16 adc;
+  T3CTL |= 0xF0;
+  P0_7 = 1;
+  Wait4us(70);
+  adc = HalAdcRead (6, HAL_ADC_RESOLUTION_8); // smkSENSOR, Resolution = 8 bits
+  Wait4us(10);
+  P0_7 = 0;
+  
+  uint8 adc1 = (uint8)(adc);
+  BMShowDigit(adc1);  
+  
+  Accel_SetParameter(PM_RAW, sizeof ( uint8 ), &adc1);
 }
 #if (defined HAL_LCD) && (HAL_LCD == TRUE)
 /*********************************************************************

@@ -61,6 +61,7 @@ extern "C"
 #define KFD_ACCEL_READ_EVT                                0x0008
 #define EXECUTE_COMMAND_EVT                               0x0010
 #define KFD_BATTERY_CHECK_EVT                             0x0020
+#define KFD_PM_READ_EVT                                   0x0040
 
 /*********************************************************************
  * MACROS
