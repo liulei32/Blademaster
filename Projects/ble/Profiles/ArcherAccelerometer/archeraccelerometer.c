@@ -58,7 +58,7 @@
  * CONSTANTS
  */
 
-#define SERVAPP_NUM_ATTR_SUPPORTED        22
+#define SERVAPP_NUM_ATTR_SUPPORTED        32
 
 /*********************************************************************
  * TYPEDEFS
@@ -109,6 +109,25 @@ CONST uint8 zUUID[ATT_BT_UUID_SIZE] =
   LO_UINT16(ACCEL_Z_UUID), HI_UINT16(ACCEL_Z_UUID)
 };
 
+// PM Enabler UUID
+CONST uint8 pmEnablerUUID[ATT_BT_UUID_SIZE] =
+{ 
+  LO_UINT16(PM_ENABLER_UUID), HI_UINT16(PM_ENABLER_UUID)
+};
+
+// PM Value UUID
+CONST uint8 pmRawUUID[ATT_BT_UUID_SIZE] =
+{ 
+  LO_UINT16(PM_RAW_UUID), HI_UINT16(PM_RAW_UUID)
+};
+
+// PM Sample Period UUID
+CONST uint8 pmSamplePeriodUUID[ATT_BT_UUID_SIZE] =
+{ 
+  LO_UINT16(PM_SAMPLEPERIOD_UUID), HI_UINT16(PM_SAMPLEPERIOD_UUID)
+};
+
+
 /*********************************************************************
  * EXTERNAL VARIABLES
  */
@@ -133,20 +152,16 @@ static CONST gattAttrType_t accelService = { ATT_BT_UUID_SIZE, accServUUID };
 
 // Enabler Characteristic Properties
 static uint8 accelEnabledCharProps = GATT_PROP_READ | GATT_PROP_WRITE;
-
 // Enabler Characteristic Value
 static uint8 accelEnabled = FALSE;
-
 // Enabler Characteristic user description
 static uint8 accelEnabledUserDesc[14] = "Accel Enable\0";
 
 
 // Range Characteristic Properties
 static uint8 accelRangeCharProps = GATT_PROP_READ;
-
 // Range Characteristic Value
 static uint16 accelRange = ACCEL_RANGE_2G;
-
 // Range Characteristic user description
 static uint8 accelRangeUserDesc[13] = "Accel Range\0";
 
@@ -183,6 +198,32 @@ static uint8 accelSamplePeriodCharProps = GATT_PROP_READ | GATT_PROP_WRITE;
 static uint32 accelSamplePeriod = 50;
 // Accel Sample Period Characteristic user description
 static uint8 accelSamplePeriodUserDesc[21] = "Accel Sample Period\0";
+
+
+// pmEnabler Characteristic Properties
+static uint8 pmEnabledCharProps = GATT_PROP_READ | GATT_PROP_WRITE;
+// pmEnabler Characteristic Value
+static uint8 pmEnabled = FALSE;
+// pmEnabler Characteristic user description
+static uint8 pmEnabledUserDesc[11] = "PM Enable\0";
+
+
+// pmRAW Characteristic Properties
+static uint8 pmRawCharProps = GATT_PROP_NOTIFY;
+// pmRAW Characteristics
+static uint8 pmRaw = 0;
+// pmRAW Characteristic Configs
+static gattCharCfg_t pmRawConfig[GATT_MAX_NUM_CONN];
+// pmRAW Characteristic user descriptions
+static uint8 pmRawCharUserDesc[8] = "PM Raw\0";
+
+
+// pm Sample Period Characteristic Properties
+static uint8 pmSamplePeriodCharProps = GATT_PROP_READ | GATT_PROP_WRITE;
+// pm Sample Period Characteristic Value //ms
+static uint32 pmSamplePeriod = 500;
+// pm Sample Period Characteristic user description
+static uint8 pmSamplePeriodUserDesc[18] = "PM Sample Period\0";
 
 /*********************************************************************
  * Profile Attributes - Table
@@ -364,7 +405,86 @@ static gattAttribute_t accelAttrTbl[SERVAPP_NUM_ATTR_SUPPORTED] =
         0,
         accelSamplePeriodUserDesc 
       },
-      
+     
+    // PM Enabler Characteristic Declaration
+    { 
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ, 
+      0,
+      &pmEnabledCharProps 
+    },
+
+      // PM Enable Characteristic Value
+      { 
+        { ATT_BT_UUID_SIZE, pmEnablerUUID },
+        GATT_PERMIT_READ | GATT_PERMIT_WRITE, 
+        0,
+        &pmEnabled 
+      },
+
+      // PM Enable User Description
+      { 
+        { ATT_BT_UUID_SIZE, charUserDescUUID },
+        GATT_PERMIT_READ, 
+        0,
+        (uint8*)&pmEnabledUserDesc 
+      },
+     
+    // pmRAW Characteristic Declaration
+    { 
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ, 
+      0,
+      &pmRawCharProps 
+    },
+  
+      // pmRAW Characteristic Value
+      { 
+        { ATT_BT_UUID_SIZE, pmRawUUID },
+        0, 
+        0, 
+        (uint8 *)&pmRaw
+      },
+
+      // pmRAW Characteristic configuration
+      { 
+        { ATT_BT_UUID_SIZE, clientCharCfgUUID },
+        GATT_PERMIT_READ | GATT_PERMIT_WRITE, 
+        0, 
+        (uint8 *)pmRawConfig
+      },
+
+      // pmRAW Characteristic User Description
+      { 
+        { ATT_BT_UUID_SIZE, charUserDescUUID },
+        GATT_PERMIT_READ, 
+        0, 
+        pmRawCharUserDesc
+      },  
+    
+    // pm Sample Period Characteristic Declaration
+    { 
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ, 
+      0,
+      &pmSamplePeriodCharProps 
+    },
+
+      // pm Sample Period Char Value
+      { 
+        { ATT_BT_UUID_SIZE, pmSamplePeriodUUID },
+        GATT_PERMIT_READ | GATT_PERMIT_WRITE, 
+        0,
+        (uint8 *)&pmSamplePeriod 
+      },
+
+      // pm Sample Period User Description
+      { 
+        { ATT_BT_UUID_SIZE, charUserDescUUID },
+        GATT_PERMIT_READ, 
+        0,
+        pmSamplePeriodUserDesc 
+      },
 };
 
 
@@ -413,6 +533,7 @@ bStatus_t Accel_AddService( uint32 services )
   GATTServApp_InitCharCfg( INVALID_CONNHANDLE, accelXConfigCoordinates );
   GATTServApp_InitCharCfg( INVALID_CONNHANDLE, accelYConfigCoordinates );
   GATTServApp_InitCharCfg( INVALID_CONNHANDLE, accelZConfigCoordinates );
+  GATTServApp_InitCharCfg( INVALID_CONNHANDLE, pmRawConfig );
 
   // Register with Link DB to receive link status change callback
   VOID linkDB_Register( accel_HandleConnStatusCB );  
@@ -542,6 +663,33 @@ bStatus_t Accel_SetParameter( uint8 param, uint8 len, void *value )
         ret = bleInvalidRange;
       }
       break;
+
+    case PM_ENABLER:
+      if ( len == sizeof ( uint8 ) ) 
+      {
+        pmEnabled = *((uint8*)value);
+      }
+      else
+      {
+        ret = bleInvalidRange;
+      }
+      break;
+      
+    case PM_RAW:
+      if ( len == sizeof ( uint8 ) ) 
+      {      
+        pmRaw = *((uint8*)value);
+
+        // See if Notification has been enabled
+        GATTServApp_ProcessCharCfg( pmRawConfig, (uint8 *)&pmRaw,
+                                    FALSE, accelAttrTbl, GATT_NUM_ATTRS( accelAttrTbl ),
+                                    INVALID_TASK_ID );
+      }
+      else
+      {
+        ret = bleInvalidRange;
+      }
+      break;
       
     default:
       ret = INVALIDPARAMETER;
@@ -592,6 +740,18 @@ bStatus_t Accel_GetParameter( uint8 param, void *value )
     case ACCEL_Z_ATTR:
       *((int8*)value) = accelZCoordinates;
       break;
+    
+    case PM_ENABLER:
+      *((uint8*)value) = pmEnabled;
+      break;
+      
+    case PM_SAMPLEPERIOD:
+      *((uint32*)value) = pmSamplePeriod;
+      break;
+      
+    case PM_RAW:
+      *((uint8*)value) = pmRaw;
+      break;
       
     default:
       ret = INVALIDPARAMETER;
@@ -640,6 +800,7 @@ static uint8 accel_ReadAttrCB( uint16 connHandle, gattAttribute_t *pAttr,
         break;
   
       case ACCEL_SAMPLEPERIOD_UUID:
+      case PM_SAMPLEPERIOD_UUID:
         *pLen = 4;
         pValue[0] = BREAK_UINT32( *((uint32 *)pAttr->pValue) , 0);
         pValue[1] = BREAK_UINT32( *((uint32 *)pAttr->pValue) , 1);
@@ -651,6 +812,8 @@ static uint8 accel_ReadAttrCB( uint16 connHandle, gattAttribute_t *pAttr,
       case ACCEL_X_UUID:
       case ACCEL_Y_UUID:
       case ACCEL_Z_UUID:
+      case PM_ENABLER_UUID:
+      case PM_RAW_UUID:
         *pLen = 1;
         pValue[0] = *pAttr->pValue;
         break;
@@ -741,6 +904,52 @@ static bStatus_t accel_WriteAttrCB( uint16 connHandle, gattAttribute_t *pAttr,
         }
         break;
         
+      case PM_ENABLER_UUID:
+        //Validate the value
+        // Make sure it's not a blob oper
+        if ( offset == 0 )
+        {
+          if ( len > 1 )
+            status = ATT_ERR_INVALID_VALUE_SIZE;
+          else if ( pValue[0] != FALSE && pValue[0] != TRUE )
+            status = ATT_ERR_INVALID_VALUE;
+        }
+        else
+        {
+          status = ATT_ERR_ATTR_NOT_LONG;
+        }
+        
+        //Write the value
+        if ( status == SUCCESS )
+        {
+          uint8 *pCurValue = (uint8 *)pAttr->pValue;
+          *pCurValue = pValue[0];
+          notifyAPP = PM_ENABLER;
+        }
+        break;
+        
+      case PM_SAMPLEPERIOD_UUID:
+        //Validate the value
+        // Make sure it's not a blob oper
+        if ( offset == 0 )
+        {
+          if ( len != 4 )
+            status = ATT_ERR_INVALID_VALUE_SIZE;
+        }
+        else
+        {
+          status = ATT_ERR_ATTR_NOT_LONG;
+        }
+        
+        //Write the value
+        if ( status == SUCCESS )
+        {
+          uint32 *pCurValue = (uint32 *)pAttr->pValue;
+          *pCurValue = BUILD_UINT32(pValue[0],pValue[1],pValue[2],pValue[3]);
+          notifyAPP = PM_SAMPLEPERIOD;
+        }
+        break;   
+        
       case GATT_CLIENT_CHAR_CFG_UUID:
         status = GATTServApp_ProcessCCCWriteReq( connHandle, pAttr, pValue, len,
                                                  offset, GATT_CLIENT_CFG_NOTIFY );
@@ -785,6 +994,7 @@ static void accel_HandleConnStatusCB( uint16 connHandle, uint8 changeType )
       GATTServApp_InitCharCfg( connHandle, accelXConfigCoordinates );
       GATTServApp_InitCharCfg( connHandle, accelYConfigCoordinates );
       GATTServApp_InitCharCfg( connHandle, accelZConfigCoordinates );
+      GATTServApp_InitCharCfg( connHandle, pmRawConfig );
     }
   }
 }

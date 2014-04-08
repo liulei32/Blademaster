@@ -60,6 +60,10 @@ extern "C"
 #define ACCEL_Z_ATTR                  3  // RW int16 - Profile Attribute value
 #define ACCEL_RANGE                   4  // RW uint16 - Profile Attribute value
 #define ACCEL_SAMPLEPERIOD            5  // RW uint32 - Profile Attribute value
+#define PM_ENABLER                    6
+#define PM_RAW                        7
+#define PM_SAMPLEPERIOD               8
+  
   
 // Profile UUIDs
 #define ACCEL_ENABLER_UUID            0xFFA1
@@ -68,6 +72,9 @@ extern "C"
 #define ACCEL_Y_UUID                  0xFFA4
 #define ACCEL_Z_UUID                  0xFFA5
 #define ACCEL_SAMPLEPERIOD_UUID       0xFFA6
+#define PM_ENABLER_UUID               0xFFA7
+#define PM_RAW_UUID                   0xFFA8
+#define PM_SAMPLEPERIOD_UUID          0xFFA9
   
 // Accelerometer Service UUID
 #define ACCEL_SERVICE_UUID            0xFFA0

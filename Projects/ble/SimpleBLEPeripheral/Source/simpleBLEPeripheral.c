@@ -989,6 +989,7 @@ static void performPeriodicTask( void )
      */
   }
   BMShowDigit(periodicR);
+  Accel_SetParameter(PM_RAW, sizeof ( uint8 ), &periodicR);
   BMShowColor(periodicR, periodicG, periodicB, 0x02);
   BMShowHum(periodicR%7);
 /*  
