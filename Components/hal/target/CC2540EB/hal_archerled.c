@@ -67,6 +67,7 @@
 #define BRIGHTNESS_GRP_DIGIT 0x80
 #define BRIGHTNESS_GRP_COLOR 0x08
 #define BRIGHTNESS_HUM 0x04
+#define BRIGHTNESS_GRP_HUM 0x08
 
 
 #define I2CCLOCK i2cClock_123KHZ
@@ -715,6 +716,7 @@ void BMLedInit()
                      0x00, 0x00, 0x00, 0x00}; // LED output control
   HalI2CInit(ADDRESS_DIGIT_TLC59116, I2CCLOCK);
   HalI2CWrite(25, wdata_digit);
+  
   // Initialize Color TLC59116
   uint8 wdata_color[25] = {0x80, 
                      0x11, 0x00, // Mode0, Mode1
@@ -724,12 +726,13 @@ void BMLedInit()
   HalI2CInit(ADDRESS_COLOR_TLC59116, I2CCLOCK);
   HalI2CWrite(25, wdata_color);
   // Initialize TLC59108
-  uint8 wdata_hum[11] = {0x80,
+  uint8 wdata_hum[12] = {0x80,
                       0x11, 0x00,
                       BRIGHTNESS_HUM, BRIGHTNESS_HUM, BRIGHTNESS_HUM, BRIGHTNESS_HUM,
-                      BRIGHTNESS_HUM, BRIGHTNESS_HUM, BRIGHTNESS_HUM, BRIGHTNESS_HUM};  // PWM0 - PWM7
+                      BRIGHTNESS_HUM, BRIGHTNESS_HUM, BRIGHTNESS_HUM, BRIGHTNESS_HUM, // PWM0 - PWM7
+                      BRIGHTNESS_GRP_HUM};
   HalI2CInit(ADDRESS_TLC59108, I2CCLOCK);
-  HalI2CWrite(11, wdata_hum);
+  HalI2CWrite(12, wdata_hum);
 }
 
 /***************************************************************************************************
@@ -791,6 +794,9 @@ int8 BMShowDigit(int8 num)
  ***************************************************************************************************/
 int8 BMShowColor(uint8 red, uint8 green, uint8 blue, uint8 brightness)
 {
+  red>>=4;
+  blue>>=4;
+  green>>=4;
   HalI2CInit(ADDRESS_COLOR_TLC59116, I2CCLOCK);
   uint8 wdata_color[25] = {0x80, 
                      0x01, 0x00, // Mode0, Mode1

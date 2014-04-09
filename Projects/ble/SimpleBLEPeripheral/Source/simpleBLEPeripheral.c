@@ -81,11 +81,8 @@
 #endif
 
 #include "cma3000d.h"
-#include "BLECentral.h"
 #include "archeraccelerometer.h"
 #include "archerled.h"
-#include "archerancs.h"
-#include "archerblectrl.h"
 #include "archerbatt.h"
 #include "archergeneral.h"
 
@@ -93,7 +90,7 @@
  * COMPILE OPTIONS
  */
 //#define BLADEMASTER_DEBUG
-#define TEST_LED FALSE
+#define TEST_LED TRUE
 
 
 /*********************************************************************
@@ -154,9 +151,6 @@
 #define ACCEL_READ_PERIOD             50
 #define PM_READ_PERIOD                500
 
-// Default service discovery timer delay in ms
-#define DEFAULT_SVC_DISCOVERY_DELAY           500
-
 /*********************************************************************
  * TYPEDEFS
  */
@@ -175,14 +169,10 @@
 
 /*********************************************************************
  * LOCAL VARIABLES
- */  
-   
+ */
 static uint8 simpleBLEPeripheral_TaskID;   // Task ID for internal task/event processing
 
 static gaprole_States_t gapProfileState = GAPROLE_INIT;
-
-
-static uint16 connHandle;
 
 // GAP - SCAN RSP data (max size = 31 bytes)
 static uint8 scanRspData[] =
@@ -245,8 +235,7 @@ static uint8 advertData[] =
 };
 
 // GAP GATT Attributes
-//static uint8 attDeviceName[GAP_DEVICE_NAME_LEN] = "Lightbringer Bracers";
-static uint8 attDeviceName[GAP_DEVICE_NAME_LEN] = "Judgement Bindings  ";
+static uint8 attDeviceName[GAP_DEVICE_NAME_LEN] = "Blade Master        ";
 
 // Accelerometer Profile Parameters
 static uint8 accelEnabler = FALSE;
@@ -266,8 +255,6 @@ static void accelProfileChangeCB( uint8 paramID);
 static void accelRead( void );
 static void pmRead( void );
 static void ledProfileChangeCB(void);
-static void ancsProfileChangeCB( uint8 paramID );
-static void blectrlProfileChangeCB( uint8 paramID );
 
 #if defined( CC2540_MINIDK )
 static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys );
@@ -277,15 +264,11 @@ static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys );
 static char *bdAddr2Str ( uint8 *pAddr );
 #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
 
-
-
 #if (defined TEST_LED) && (TEST_LED == TRUE)
 static uint8 periodicR = 0;
 static uint8 periodicG = 85;
 static uint8 periodicB = 171;
 #endif
-
-
 
 /*********************************************************************
  * PROFILE CALLBACKS
@@ -323,18 +306,6 @@ static ledCBs_t keyFob_LedCBs =
   ledProfileChangeCB,
 };
 
-// ANCS Profile Callbacks
-static ancsCBs_t keyFob_ANCSCBs =
-{
-  ancsProfileChangeCB,
-};
-
-// BLECTRL Profile Callbacks
-static blectrlCBs_t keyFob_BLECTRLCBs =
-{
-  blectrlProfileChangeCB,
-};
-
 /*********************************************************************
  * PUBLIC FUNCTIONS
  */
@@ -359,14 +330,9 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
 
   // Setup the GAP Peripheral Role Profile
   {
-
-    //#if defined( CC2540_MINIDK )
-      // For the CC2540DK-MINI keyfob, device doesn't start advertising until button is pressed
-    //  uint8 initial_advertising_enable = FALSE;
-    //#else
-      // For other hardware platforms, device starts advertising upon initialization
-      uint8 initial_advertising_enable = TRUE;
-    //#endif
+    // For the CC2540DK-MINI keyfob, device doesn't start advertising until button is pressed
+    // For other hardware platforms, device starts advertising upon initialization
+    uint8 initial_advertising_enable = TRUE;
 
     // By setting this to zero, the device will go into the waiting state after
     // being discoverable for 30.72 second, and will not being advertising again
@@ -435,8 +401,6 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
   General_AddService (GATT_ALL_SERVICES);     // General Profile
   Accel_AddService( GATT_ALL_SERVICES );      // Accelerometer Profile
   Led_AddService( GATT_ALL_SERVICES );        // Led Profile
-  ANCS_AddService( GATT_ALL_SERVICES );       // ANCS Profile
-  BLECTRL_AddService( GATT_ALL_SERVICES );    // Ble CTRL Profile
   Batt_AddService();
 
 #if defined( CC2540_MINIDK )
@@ -521,11 +485,9 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
 
 #endif // defined ( DC_DC_P0_7 )
 
-  // Initiate GATT Client
-  VOID GATT_InitClient();
-  GATT_RegisterForInd( simpleBLEPeripheral_TaskID );
   // Setup a delayed profile startup
   osal_set_event( simpleBLEPeripheral_TaskID, SBP_START_DEVICE_EVT );
+  
 }
 
 /*********************************************************************
@@ -584,15 +546,6 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
     
     // Start the Led Profile
     VOID Led_RegisterAppCBs( &keyFob_LedCBs);
-    
-    // Start the ANCS Profile
-    VOID ANCS_RegisterAppCBs( &keyFob_ANCSCBs);
-
-    // Start the BLE CTRL Profile
-    VOID BLECTRL_RegisterAppCBs( &keyFob_BLECTRLCBs);
-    
-    // Register Task ID in BLECentral functions
-    simpleBLECentralSetTaskID(simpleBLEPeripheral_TaskID);
       
     return ( events ^ SBP_START_DEVICE_EVT );
   }
@@ -608,7 +561,6 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
     // Perform periodic application task
     performPeriodicTask();
     
-
     return (events ^ SBP_PERIODIC_EVT);
   }
   
@@ -688,12 +640,6 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
   }
 #endif // PLUS_BROADCASTER
 
-  if ( events & EXECUTE_COMMAND_EVT )
-  {
-    simpleBLECentralExecuteCommand( );
-    return ( events ^ EXECUTE_COMMAND_EVT );
-  }
-  
   // Discard unknown events
   return 0;
 }
@@ -716,17 +662,12 @@ static void simpleBLEPeripheral_ProcessOSALMsg( osal_event_hdr_t *pMsg )
       simpleBLEPeripheral_HandleKeys( ((keyChange_t *)pMsg)->state, ((keyChange_t *)pMsg)->keys );
       break;
   #endif // #if defined( CC2540_MINIDK )
-      
-    case GATT_MSG_EVENT:
-      simpleBLECentralProcessGATTMsg( (gattMsgEvent_t *) pMsg );
-      break;
-      
+
   default:
     // do nothing
     break;
   }
 }
-
 
 #if defined( CC2540_MINIDK )
 /*********************************************************************
@@ -756,7 +697,6 @@ static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys )
   {
 
     SK_Keys |= SK_KEY_RIGHT;
-    //HalLedSet( (HAL_LED_2), HAL_LED_MODE_OFF );// Added by Lei
 
     // if device is not in a connection, pressing the right key should toggle
     // advertising on and off
@@ -824,12 +764,6 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
         systemId[5] = ownAddress[3];
 
         DevInfo_SetParameter(DEVINFO_SYSTEM_ID, DEVINFO_SYSTEM_ID_LEN, systemId);
-
-        #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-          // Display device address
-          HalLcdWriteString( bdAddr2Str( ownAddress ),  HAL_LCD_LINE_2 );
-          HalLcdWriteString( "Initialized",  HAL_LCD_LINE_3 );
-        #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
           
         #if defined BLADEMASTER_DEBUG
           BMShowHum(0);
@@ -839,10 +773,6 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
 
     case GAPROLE_ADVERTISING:
       {
-        #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-          HalLcdWriteString( "Advertising",  HAL_LCD_LINE_3 );
-        #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-          
         #if defined BLADEMASTER_DEBUG
           BMShowHum(1);
         #endif
@@ -851,10 +781,6 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
 
     case GAPROLE_CONNECTED:
       {
-        #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-          HalLcdWriteString( "Connected",  HAL_LCD_LINE_3 );
-        #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-          
         #if defined BLADEMASTER_DEBUG
           BMShowHum(2);
         #endif
@@ -864,16 +790,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
         // Not connected before this
         if (appConnect == NOT_CONNECTED)
         {
-          // Subscribe ANCS/DATA source
-          uint8 ancs_enabler, ancs_state;
-          ANCS_GetParameter(ANCS_ENABLER, &ancs_enabler);
-          General_GetParameter (ANCS_STATE, &ancs_state);
-          if (ancs_state==FALSE && ancs_enabler==TRUE)
-          {
-            simpleBLECentralSubscribeANCS(TRUE);
-          }
-          // Get ConnHandler
-          GAPRole_GetParameter  ( GAPROLE_CONNHANDLE, &connHandle);
+          // This is a system auto connection
           uint8 newAppConnect = SYS_CONNECTED;
           General_SetParameter( APP_CONNECT , sizeof(uint8), &newAppConnect );
         }
@@ -883,7 +800,6 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
           uint8 current_adv_enabled_status = TRUE;
           GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof(uint8), &current_adv_enabled_status );
         }
-        
       }
       break;
     case GAPROLE_CONNECTED_ADV:
@@ -891,16 +807,12 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
         #if defined BLADEMASTER_DEBUG
           BMShowHum(3);
         #endif
-          
         HalLedSet(HAL_LED_1, HAL_LED_MODE_BLINK );
         HalLedSet(HAL_LED_2, HAL_LED_MODE_BLINK );
       }
       break;
     case GAPROLE_WAITING:
       {
-        #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-          HalLcdWriteString( "Disconnected",  HAL_LCD_LINE_3 );
-        #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
         HalLedSet(HAL_LED_2, HAL_LED_MODE_BLINK );
         uint8 writeValue = FALSE;
         General_SetParameter( ANCS_STATE, sizeof(uint8), &writeValue );
@@ -915,9 +827,6 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
 
     case GAPROLE_WAITING_AFTER_TIMEOUT:
       {
-        #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-          HalLcdWriteString( "Timed Out",  HAL_LCD_LINE_3 );
-        #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
         HalLedSet(HAL_LED_2, HAL_LED_MODE_BLINK );
         uint8 writeValue = FALSE;
         General_SetParameter( ANCS_STATE, sizeof(uint8), &writeValue );
@@ -932,10 +841,6 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
 
     case GAPROLE_ERROR:
       {
-        #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-          HalLcdWriteString( "Error",  HAL_LCD_LINE_3 );
-        #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-          
         #if defined BLADEMASTER_DEBUG
           BMShowHum(4);
         #endif
@@ -944,9 +849,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
 
     default:
       {
-        #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-          HalLcdWriteString( "",  HAL_LCD_LINE_3 );
-        #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
+        ;
       }
       break;
 
@@ -1003,7 +906,6 @@ static void performPeriodicTask( void )
   uint8 stat;
 
   // Call to retrieve the value of the third characteristic in the profile
-  //stat = SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR3, &valueToCopy);
 
   if( stat == SUCCESS )
   {
@@ -1017,8 +919,7 @@ static void performPeriodicTask( void )
   
 #if (defined TEST_LED) && (TEST_LED == TRUE)
   BMShowDigit(periodicR);
-  Accel_SetParameter(PM_RAW, sizeof ( uint8 ), &periodicR);
-  BMShowColor(periodicR, periodicG, periodicB, 0x02);
+  BMShowColor(periodicR, periodicG, periodicB, 0x08);
   BMShowHum(periodicR%7);
 /*  
   // Get Temperature data
@@ -1135,47 +1036,6 @@ static void generalProfileChangeCB( uint8 paramID )
 static void ledProfileChangeCB(void)
 {
   ;
-}
-
-static void ancsProfileChangeCB( uint8 paramID )
-{
-  uint8 readValue;
-  uint8 writeValue;
-  if (paramID == ANCS_ENABLER)
-  {
-    ANCS_GetParameter( ANCS_ENABLER, &readValue );
-    simpleBLECentralSubscribeANCS(readValue);
-  }
-  else if (paramID == DATASRC_ENABLER)
-  {
-    ANCS_GetParameter( DATASRC_ENABLER, &readValue );
-    simpleBLECentralSubscribeDataSrc(readValue);
-  }
-  else if (paramID == CONTROL_POINT)
-  {
-    writeValue = BLECTRL_CMD_WRITE_CONTROL_POINT;
-    BLECTRL_SetParameter( BLECTRL_COMMAND, sizeof(uint8), &writeValue );
-    osal_start_timerEx( simpleBLEPeripheral_TaskID, EXECUTE_COMMAND_EVT, DEFAULT_SVC_DISCOVERY_DELAY );
-  }
-}
-
-static void blectrlProfileChangeCB( uint8 paramID )
-{
-  uint8 readValue;
-  switch (paramID)
-  {
-  case BLECTRL_COMMAND:
-    BLECTRL_GetParameter( BLECTRL_COMMAND, &readValue );
-    if (readValue != 0)
-    {
-        osal_start_timerEx( simpleBLEPeripheral_TaskID, EXECUTE_COMMAND_EVT, DEFAULT_SVC_DISCOVERY_DELAY );
-    }
-    break;
-  
-  default:
-    // Should never reach here
-    break;
-  }
 }
 
 /*********************************************************************

@@ -8582,12 +8582,6 @@
   <group>
     <name>APP</name>
     <file>
-      <name>$PROJ_DIR$\..\Source\BLECentral.c</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\Source\BLECentral.h</name>
-    </file>
-    <file>
       <name>$PROJ_DIR$\..\Source\cma3000d.c</name>
     </file>
     <file>
@@ -8866,22 +8860,10 @@
       <name>$PROJ_DIR$\..\..\Profiles\ArcherAccelerometer\archeraccelerometer.h</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\Profiles\ArcherANCS\archerancs.c</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\..\Profiles\ArcherANCS\archerancs.h</name>
-    </file>
-    <file>
       <name>$PROJ_DIR$\..\..\Profiles\ArcherBatt\archerbatt.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\Profiles\ArcherBatt\archerbatt.h</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\..\Profiles\ArcherBLECTRL\archerblectrl.c</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\..\Profiles\ArcherBLECTRL\archerblectrl.h</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\Profiles\ArcherGeneral\archergeneral.c</name>
