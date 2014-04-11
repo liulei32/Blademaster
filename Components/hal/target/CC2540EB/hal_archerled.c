@@ -749,8 +749,10 @@ int8 BMShowDigit(int8 num)
   // Set Digits
   uint16 ledToSet = 0;
   uint8 ones, tens;
-  if (num>99 || num<-99)
-    return -1;
+  if (num>99)
+    num = 99;
+  else if (num<-99)
+    num = -99;
   if (num<0)
   {
     num = -num;
