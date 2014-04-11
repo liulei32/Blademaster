@@ -80,6 +80,7 @@
   #include "oad_target.h"
 #endif
 
+#include "BMSensor.h"
 #include "cma3000d.h"
 #include "archeraccelerometer.h"
 #include "archerled.h"
@@ -91,6 +92,7 @@
  */
 //#define BLADEMASTER_DEBUG
 #define TEST_LED TRUE
+#define I2C_ENABLE
 
 
 /*********************************************************************
@@ -253,7 +255,6 @@ static void performPeriodicTask( void );
 static void generalProfileChangeCB( uint8 paramID );
 static void accelProfileChangeCB( uint8 paramID);
 static void accelRead( void );
-static void pmRead( void );
 static void ledProfileChangeCB(void);
 
 #if defined( CC2540_MINIDK )
@@ -444,7 +445,7 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
                 // O P2.1 DD
                 // O P2.0 Unused
 
-  P0 = 0x79; // All pins on port 0 to low except for inputs
+  P0 = 0x7B; // All pins on port 0 to low except for inputs, P0.1
   P1 = 0;   // All pins on port 1 to low
   P2 = 0;   // All pins on port 2 to low
 
@@ -457,7 +458,9 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
   HalAdcInit();
   
   // Initialize the LEDs
+#if defined (I2C_ENABLE)
   BMLedInit();
+#endif
   
 #if (defined HAL_LCD) && (HAL_LCD == TRUE)
 
@@ -618,8 +621,31 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
         osal_start_timerEx( simpleBLEPeripheral_TaskID, KFD_PM_READ_EVT, pmSamplePeriod );
       }
 
-      // Read accelerometer data
-      pmRead();
+      // Read PM data
+      uint8 pmRaw = pmRead();
+      uint8 color[3];
+      GetPMRGB(pmRaw, color);
+#if defined (I2C_ENABLE)
+      BMShowColor(color[0], color[1], color[2], 0x08);
+#endif
+      Accel_SetParameter(PM_RAW, sizeof ( uint8 ), &pmRaw);
+      
+      // Read temp data
+#if defined (I2C_ENABLE)
+      int16 temperature = tempRead();
+      int8 tempToShow = (int8)(temperature/32-50);
+      //int16 temperature = tempReadADC();
+      BMShowDigit(tempToShow);  
+      Accel_SetParameter(TEMP_VALUE, sizeof ( int16 ), &temperature);
+#endif
+      
+      
+      // Read humid data
+#if defined (I2C_ENABLE)
+      uint8 humility = humRead();
+      BMShowHum(humility/16+1);  
+      Accel_SetParameter(HUMID_VALUE, sizeof ( uint8 ), &humility);
+#endif
     }
     else
     {
@@ -879,13 +905,6 @@ static void rssiReadCB( int8 value )
    General_SetParameter( RSSI_VALUE, sizeof(int8), &value );
 }
 
-static void Wait4us(uint8 num)
-{
-  uint8 target = T3CNT + num;
-  while (T3CNT != target)
-    ;
-}
-
 /*********************************************************************
  * @fn      performPeriodicTask
  *
@@ -917,51 +936,15 @@ static void performPeriodicTask( void )
      */
   }
   
-#if (defined TEST_LED) && (TEST_LED == TRUE)
+  //int16 temperature = tempRead();
+#if (defined TEST_LED) && (TEST_LED == TRUE) && (defined I2C_ENABLE)
   BMShowDigit(periodicR);
   BMShowColor(periodicR, periodicG, periodicB, 0x08);
   BMShowHum(periodicR%7);
-/*  
-  // Get Temperature data
   
-  HalI2CInit(0x40, i2cClock_123KHZ);
-  uint8 wdata_start[2] = {0x03, 0x11};
-  uint8 res = HalI2CWrite(2, wdata_start);
-  
-  uint8 wdata_status = 0x00;
-  uint8 wdata_result = 0x01;
-  uint8 rdata = 0x01;
-  while ((rdata&0x01) == 0x01)
-  {
-    HalI2CInit(0x40, i2cClock_123KHZ);
-    HalI2CWriteNoStop(1, &wdata_status);
-    uint8 res = HalI2CRead(1, &rdata);
-    if ((res & 0x01) == 0x01)  
-      HalLedSet( HAL_LED_1, HAL_LED_MODE_ON );
-    else
-      HalLedSet( HAL_LED_1, HAL_LED_MODE_OFF );
-      
-    if ((res & 0x02) == 0x02)  
-      HalLedSet( HAL_LED_2, HAL_LED_MODE_ON );
-    else
-      HalLedSet( HAL_LED_2, HAL_LED_MODE_OFF );
-    Wait4us(200);
-  }
-  uint8 rdata_result[2];
-  HalI2CInit(0x40, i2cClock_123KHZ);
-  HalI2CWriteNoStop(1, &wdata_result);
-  HalI2CRead(2, rdata_result);
-  uint16 temperature = ((uint16)rdata_result[0])<<8;
-  temperature = temperature + rdata_result[1];
-  temperature = temperature >> 2;
-  int8 tempToShow = temperature/32-50;
-  BMShowDigit(tempToShow);
-  
-*/
   periodicR = periodicR + 8;
   periodicG = periodicG + 19;
   periodicB = periodicB + 23;
-  
 #endif
 }
 
@@ -1097,34 +1080,6 @@ static void accelRead( void )
   }
 }
 
-/*********************************************************************
- * @fn      pmRead
- *
- * @brief   Called by the application to read accelerometer data
- *          and put data in accelerometer profile
- *
- * @param   none
- *
- * @return  none
- */
-static void pmRead( void )
-{
-  // Get PM2.5 data
-  HalAdcInit(); // Set ADC reference to VDD
-  
-  static uint16 adc;
-  T3CTL |= 0xF0;
-  P0_7 = 1;
-  Wait4us(70);
-  adc = HalAdcRead (6, HAL_ADC_RESOLUTION_8); // smkSENSOR, Resolution = 8 bits
-  Wait4us(10);
-  P0_7 = 0;
-  
-  uint8 adc1 = (uint8)(adc);
-  BMShowDigit(adc1);  
-  
-  Accel_SetParameter(PM_RAW, sizeof ( uint8 ), &adc1);
-}
 #if (defined HAL_LCD) && (HAL_LCD == TRUE)
 /*********************************************************************
  * @fn      bdAddr2Str

@@ -62,7 +62,7 @@
 #define ADDRESS_DIGIT_TLC59116 0x62
 #define ADDRESS_COLOR_TLC59116 0x63
 #define ADDRESS_TLC59108 0x41
-#define BRIGHTNESS_DIGIT 0x10
+#define BRIGHTNESS_DIGIT 0x40
 #define BRIGHTNESS_SIGN 0x10
 #define BRIGHTNESS_GRP_DIGIT 0x80
 #define BRIGHTNESS_GRP_COLOR 0x08
@@ -822,7 +822,7 @@ int8 BMShowColor(uint8 red, uint8 green, uint8 blue, uint8 brightness)
 int8 BMShowHum(uint8 hum)
 {
   if (hum>6)
-    return -1;
+    hum = 6;
   // Turn ON humility TLC59108
   uint8 wdata_on[2] = {0x00, 0x01}; // LED output control
   HalI2CInit(ADDRESS_TLC59108, I2CCLOCK);

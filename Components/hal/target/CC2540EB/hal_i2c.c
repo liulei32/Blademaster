@@ -88,7 +88,7 @@ typedef enum
  *                                           Macros
  * ------------------------------------------------------------------------------------------------
  */
-
+#define I2C_MAX_RETRY         32000
 #define I2C_WRAPPER_DISABLE() st( I2CWC    =     0x00;              )
 #define I2C_CLOCK_RATE(x)     st( I2CCFG  &=    ~I2C_CLOCK_MASK;    \
                                   I2CCFG  |=     x;                 )
@@ -137,7 +137,7 @@ typedef enum
  * ------------------------------------------------------------------------------------------------
  */
 static uint8 i2cAddr;  // Target Slave address pre-shifted up by one leaving RD/WRn LSB as zero.
-
+static uint8 i2cGood = true;
 /**************************************************************************************************
  * @fn          i2cMstStrt
  *
@@ -151,7 +151,17 @@ static uint8 i2cAddr;  // Target Slave address pre-shifted up by one leaving RD/
  */
 static uint8 i2cMstStrt(uint8 RD_WRn)
 {
-  I2C_STRT();
+  // A counter to moniter I2C failure
+  uint16 i2cRetry = 0;
+  
+  I2CCFG = (I2CCFG & ~I2C_SI) | I2C_STA;
+  while (i2cGood && (I2CCFG & I2C_SI) == 0)
+  {
+    i2cRetry++;
+    if (i2cRetry > I2C_MAX_RETRY)
+      i2cGood = false;
+  }
+  I2CCFG &= ~I2C_STA;
     
   if ((I2CSTAT == mstStarted)  || (I2CSTAT == mstRepStart))/* A start condition has been transmitted */
   {
