@@ -63,6 +63,8 @@ extern "C"
 #define PM_ENABLER                    6
 #define PM_RAW                        7
 #define PM_SAMPLEPERIOD               8
+#define TEMP_VALUE                    10
+#define HUMID_VALUE                   13
   
   
 // Profile UUIDs
@@ -75,6 +77,8 @@ extern "C"
 #define PM_ENABLER_UUID               0xFFA7
 #define PM_RAW_UUID                   0xFFA8
 #define PM_SAMPLEPERIOD_UUID          0xFFA9
+#define TEMP_VALUE_UUID               0xFFAB
+#define HUMID_VALUE_UUID              0xFFAE
   
 // Accelerometer Service UUID
 #define ACCEL_SERVICE_UUID            0xFFA0

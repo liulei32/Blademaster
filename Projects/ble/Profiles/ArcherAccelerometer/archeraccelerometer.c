@@ -58,7 +58,7 @@
  * CONSTANTS
  */
 
-#define SERVAPP_NUM_ATTR_SUPPORTED        32
+#define SERVAPP_NUM_ATTR_SUPPORTED        40
 
 /*********************************************************************
  * TYPEDEFS
@@ -127,6 +127,17 @@ CONST uint8 pmSamplePeriodUUID[ATT_BT_UUID_SIZE] =
   LO_UINT16(PM_SAMPLEPERIOD_UUID), HI_UINT16(PM_SAMPLEPERIOD_UUID)
 };
 
+// Temperature Value UUID
+CONST uint8 tempValueUUID[ATT_BT_UUID_SIZE] =
+{ 
+  LO_UINT16(TEMP_VALUE_UUID), HI_UINT16(TEMP_VALUE_UUID)
+};
+
+// Humid Value UUID
+CONST uint8 humidValueUUID[ATT_BT_UUID_SIZE] =
+{ 
+  LO_UINT16(HUMID_VALUE_UUID), HI_UINT16(HUMID_VALUE_UUID)
+};
 
 /*********************************************************************
  * EXTERNAL VARIABLES
@@ -205,7 +216,7 @@ static uint8 pmEnabledCharProps = GATT_PROP_READ | GATT_PROP_WRITE;
 // pmEnabler Characteristic Value
 static uint8 pmEnabled = FALSE;
 // pmEnabler Characteristic user description
-static uint8 pmEnabledUserDesc[11] = "PM Enable\0";
+static uint8 pmEnabledUserDesc[10] = "PM Enable\0";
 
 
 // pmRAW Characteristic Properties
@@ -215,7 +226,7 @@ static uint8 pmRaw = 0;
 // pmRAW Characteristic Configs
 static gattCharCfg_t pmRawConfig[GATT_MAX_NUM_CONN];
 // pmRAW Characteristic user descriptions
-static uint8 pmRawCharUserDesc[8] = "PM Raw\0";
+static uint8 pmRawCharUserDesc[7] = "PM Raw\0";
 
 
 // pm Sample Period Characteristic Properties
@@ -223,7 +234,27 @@ static uint8 pmSamplePeriodCharProps = GATT_PROP_READ | GATT_PROP_WRITE;
 // pm Sample Period Characteristic Value //ms
 static uint32 pmSamplePeriod = 500;
 // pm Sample Period Characteristic user description
-static uint8 pmSamplePeriodUserDesc[18] = "PM Sample Period\0";
+static uint8 pmSamplePeriodUserDesc[17] = "PM Sample Period\0";
+
+
+// Temp Value Characteristic Properties
+static uint8 tempValueCharProps = GATT_PROP_NOTIFY;
+// Temp Value Characteristics
+static int16 tempValue = 0;
+// Temp Value Characteristic Configs
+static gattCharCfg_t tempValueConfig[GATT_MAX_NUM_CONN];
+// Temp Value Characteristic user descriptions
+static uint8 tempValueCharUserDesc[11] = "Temp Value\0";
+
+
+// Humid Value Characteristic Properties
+static uint8 humidValueCharProps = GATT_PROP_NOTIFY;
+// Humid Value Characteristics
+static uint8 humidValue = 0;
+// Humid Value Characteristic Configs
+static gattCharCfg_t humidValueConfig[GATT_MAX_NUM_CONN];
+// Humid Value Characteristic user descriptions
+static uint8 humidValueCharUserDesc[12] = "Humid Value\0";
 
 /*********************************************************************
  * Profile Attributes - Table
@@ -485,6 +516,70 @@ static gattAttribute_t accelAttrTbl[SERVAPP_NUM_ATTR_SUPPORTED] =
         0,
         pmSamplePeriodUserDesc 
       },
+           
+    // Temp Value Characteristic Declaration
+    { 
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ, 
+      0,
+      &tempValueCharProps 
+    },
+  
+      // Temp Value Characteristic Value
+      { 
+        { ATT_BT_UUID_SIZE, tempValueUUID },
+        0, 
+        0, 
+        (uint8 *)&tempValue
+      },
+
+      // Temp Value Characteristic configuration
+      { 
+        { ATT_BT_UUID_SIZE, clientCharCfgUUID },
+        GATT_PERMIT_READ | GATT_PERMIT_WRITE, 
+        0, 
+        (uint8 *)tempValueConfig
+      },
+
+      // Temp Value Characteristic User Description
+      { 
+        { ATT_BT_UUID_SIZE, charUserDescUUID },
+        GATT_PERMIT_READ, 
+        0, 
+        tempValueCharUserDesc
+      },  
+                 
+    // Humid Value Characteristic Declaration
+    { 
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ, 
+      0,
+      &humidValueCharProps 
+    },
+  
+      // Humid Value Characteristic Value
+      { 
+        { ATT_BT_UUID_SIZE, humidValueUUID },
+        0, 
+        0, 
+        (uint8 *)&humidValue
+      },
+
+      // Humid Value Characteristic configuration
+      { 
+        { ATT_BT_UUID_SIZE, clientCharCfgUUID },
+        GATT_PERMIT_READ | GATT_PERMIT_WRITE, 
+        0, 
+        (uint8 *)humidValueConfig
+      },
+
+      // Humid Value Characteristic User Description
+      { 
+        { ATT_BT_UUID_SIZE, charUserDescUUID },
+        GATT_PERMIT_READ, 
+        0, 
+        humidValueCharUserDesc
+      },  
 };
 
 
@@ -534,6 +629,8 @@ bStatus_t Accel_AddService( uint32 services )
   GATTServApp_InitCharCfg( INVALID_CONNHANDLE, accelYConfigCoordinates );
   GATTServApp_InitCharCfg( INVALID_CONNHANDLE, accelZConfigCoordinates );
   GATTServApp_InitCharCfg( INVALID_CONNHANDLE, pmRawConfig );
+  GATTServApp_InitCharCfg( INVALID_CONNHANDLE, tempValueConfig );
+  GATTServApp_InitCharCfg( INVALID_CONNHANDLE, humidValueConfig );
 
   // Register with Link DB to receive link status change callback
   VOID linkDB_Register( accel_HandleConnStatusCB );  
@@ -691,6 +788,38 @@ bStatus_t Accel_SetParameter( uint8 param, uint8 len, void *value )
       }
       break;
       
+    case TEMP_VALUE:
+      if ( len == sizeof ( int16 ) ) 
+      {      
+        tempValue = *((int16*)value);
+
+        // See if Notification has been enabled
+        GATTServApp_ProcessCharCfg( tempValueConfig, (uint8 *)&tempValue,
+                                    FALSE, accelAttrTbl, GATT_NUM_ATTRS( accelAttrTbl ),
+                                    INVALID_TASK_ID );
+      }
+      else
+      {
+        ret = bleInvalidRange;
+      }
+      break;    
+      
+    case HUMID_VALUE:
+      if ( len == sizeof ( uint8 ) ) 
+      {      
+        humidValue = *((uint8*)value);
+
+        // See if Notification has been enabled
+        GATTServApp_ProcessCharCfg( humidValueConfig, (uint8 *)&humidValue,
+                                    FALSE, accelAttrTbl, GATT_NUM_ATTRS( accelAttrTbl ),
+                                    INVALID_TASK_ID );
+      }
+      else
+      {
+        ret = bleInvalidRange;
+      }
+      break;    
+      
     default:
       ret = INVALIDPARAMETER;
       break;
@@ -752,6 +881,14 @@ bStatus_t Accel_GetParameter( uint8 param, void *value )
     case PM_RAW:
       *((uint8*)value) = pmRaw;
       break;
+    
+    case TEMP_VALUE:
+      *((int16*)value) = tempValue;
+      break;
+    
+    case HUMID_VALUE:
+      *((uint8*)value) = humidValue;
+      break;
       
     default:
       ret = INVALIDPARAMETER;
@@ -798,6 +935,11 @@ static uint8 accel_ReadAttrCB( uint16 connHandle, gattAttribute_t *pAttr,
         pValue[0] = LO_UINT16( *((uint16 *)pAttr->pValue) );
         pValue[1] = HI_UINT16( *((uint16 *)pAttr->pValue) );
         break;
+      case TEMP_VALUE_UUID:
+        *pLen = 2;
+        pValue[0] = LO_UINT16( *((int16 *)pAttr->pValue) );
+        pValue[1] = HI_UINT16( *((int16 *)pAttr->pValue) );
+        break;
   
       case ACCEL_SAMPLEPERIOD_UUID:
       case PM_SAMPLEPERIOD_UUID:
@@ -814,6 +956,7 @@ static uint8 accel_ReadAttrCB( uint16 connHandle, gattAttribute_t *pAttr,
       case ACCEL_Z_UUID:
       case PM_ENABLER_UUID:
       case PM_RAW_UUID:
+      case HUMID_VALUE_UUID:
         *pLen = 1;
         pValue[0] = *pAttr->pValue;
         break;
@@ -995,6 +1138,8 @@ static void accel_HandleConnStatusCB( uint16 connHandle, uint8 changeType )
       GATTServApp_InitCharCfg( connHandle, accelYConfigCoordinates );
       GATTServApp_InitCharCfg( connHandle, accelZConfigCoordinates );
       GATTServApp_InitCharCfg( connHandle, pmRawConfig );
+      GATTServApp_InitCharCfg( connHandle, tempValueConfig );
+      GATTServApp_InitCharCfg( connHandle, humidValueConfig );
     }
   }
 }
