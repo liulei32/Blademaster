@@ -10,12 +10,15 @@ const static uint8 blue[6] =  {0,   0,   0,   0,   76,  35 };
 void Wait4us(uint8 num)
 {
   uint8 target = T3CNT + num;
+  T3CTL |= 0xF0; // Run timer
   while (T3CNT != target)
     ;
+  T3CTL &= !0x10; // Suspend timer
 }
 
 int16 tempRead(void)
 {
+  // Turn on Si7015 CSn
   P0_1 = 0;
   // Get Temperature data
   HalI2CInit(0x40, i2cClock_123KHZ);
@@ -27,23 +30,21 @@ int16 tempRead(void)
   uint8 rdata = 0x01;
   while ((rdata&0x01) == 0x01)
   {
-    //HalI2CInit(0x40, i2cClock_123KHZ);
     HalI2CWriteNoStop(1, &wdata_status);
     uint8 res = HalI2CRead(1, &rdata);
     if ((res & 0x01) == 0x01)  
       HalLedSet( HAL_LED_1, HAL_LED_MODE_ON );
     else
       HalLedSet( HAL_LED_1, HAL_LED_MODE_OFF );
-    //Wait4us(200);
+    Wait4us(200);
   }
   uint8 rdata_result[2];
-  //HalI2CInit(0x40, i2cClock_123KHZ);
   HalI2CWriteNoStop(1, &wdata_result);
   HalI2CRead(2, rdata_result);
-  
+  // Turn off Si7015 CSn
   P0_1 = 1;
   
-  uint16 temperature = ((uint16)rdata_result[0])<<8 | (uint16)rdata_result[1];
+  uint16 temperature = ((uint16)rdata_result[0]<<8) | (uint16)rdata_result[1];
   temperature = temperature >> 2;
   return temperature;
 }
@@ -63,8 +64,9 @@ int16 tempReadADC(void)
 
 uint8 humRead(void)
 {
+  // Turn on Si7015 CSn
   P0_1 = 0;
-  // Get Hum data
+  // Get Humidity data
   HalI2CInit(0x40, i2cClock_123KHZ);
   uint8 wdata_start[2] = {0x03, 0x01};
   uint8 res = HalI2CWrite(2, wdata_start);
@@ -74,7 +76,6 @@ uint8 humRead(void)
   uint8 rdata = 0x01;
   while ((rdata&0x01) == 0x01)
   {
-    HalI2CInit(0x40, i2cClock_123KHZ);
     HalI2CWriteNoStop(1, &wdata_status);
     uint8 res = HalI2CRead(1, &rdata);
     if ((res & 0x01) == 0x01)  
@@ -84,13 +85,12 @@ uint8 humRead(void)
     //Wait4us(200);
   }
   uint8 rdata_result[2];
-  HalI2CInit(0x40, i2cClock_123KHZ);
   HalI2CWriteNoStop(1, &wdata_result);
   HalI2CRead(2, rdata_result);
-  
+  // Turn off Si7015 CSn
   P0_1 = 1;
   
-  uint16 humility = ((uint16)rdata_result[0])<<8;
+  uint16 humility = ((uint16)rdata_result[0]<<8) | (uint16)rdata_result[1];
   humility = humility + rdata_result[1];
   humility = humility >> 4;
   uint8 humToShow = humility/16-24;
@@ -103,7 +103,6 @@ uint8 pmRead( void )
   HalAdcInit(); // Set ADC reference to VDD
   
   static uint16 adc;
-  T3CTL |= 0xF0;
   P0_7 = 1;
   Wait4us(70);
   adc = HalAdcRead (6, HAL_ADC_RESOLUTION_8); // smkSENSOR, Resolution = 8 bits
