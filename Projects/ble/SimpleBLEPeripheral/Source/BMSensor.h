@@ -5,4 +5,5 @@ int16 tempRead(void);
 int16 tempReadADC(void);
 uint8 humRead(void);
 uint8 pmRead( void );
+uint8 battRead( void );
 void GetPMRGB(uint8 pmRaw, uint8 *color);

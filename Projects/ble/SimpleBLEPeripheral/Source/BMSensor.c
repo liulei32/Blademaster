@@ -3,9 +3,9 @@
 #include "hal_archerled.h"
 #include "hal_i2c.h"
 
-const static uint8 red[6] =   {0,   255, 255, 255, 153, 126};
+const static uint8 red[6] =   {0,   255, 255, 255, 153, 100};
 const static uint8 green[6] = {228, 255, 126, 0,   0,   0  };
-const static uint8 blue[6] =  {0,   0,   0,   0,   76,  35 };
+const static uint8 blue[6] =  {0,   0,   0,   0,   76,  120};
 
 void Wait4us(uint8 num)
 {
@@ -32,10 +32,8 @@ int16 tempRead(void)
   {
     HalI2CWriteNoStop(1, &wdata_status);
     uint8 res = HalI2CRead(1, &rdata);
-    if ((res & 0x01) == 0x01)  
+    if ((res & 0x01) != 0x01)
       HalLedSet( HAL_LED_1, HAL_LED_MODE_ON );
-    else
-      HalLedSet( HAL_LED_1, HAL_LED_MODE_OFF );
     Wait4us(200);
   }
   uint8 rdata_result[2];
@@ -78,11 +76,9 @@ uint8 humRead(void)
   {
     HalI2CWriteNoStop(1, &wdata_status);
     uint8 res = HalI2CRead(1, &rdata);
-    if ((res & 0x01) == 0x01)  
+    if ((res & 0x01) != 0x01)
       HalLedSet( HAL_LED_1, HAL_LED_MODE_ON );
-    else
-      HalLedSet( HAL_LED_1, HAL_LED_MODE_OFF );
-    //Wait4us(200);
+    Wait4us(200);
   }
   uint8 rdata_result[2];
   HalI2CWriteNoStop(1, &wdata_result);
@@ -108,6 +104,17 @@ uint8 pmRead( void )
   adc = HalAdcRead (6, HAL_ADC_RESOLUTION_8); // smkSENSOR, Resolution = 8 bits
   Wait4us(10);
   P0_7 = 0;
+  
+  return (uint8)(adc);
+}
+
+uint8 battRead( void )
+{
+  // Get battery voltage data
+  HalAdcInit(); // Set ADC reference to VDD
+  
+  static uint16 adc;
+  adc = HalAdcRead (5, HAL_ADC_RESOLUTION_8); // smkSENSOR, Resolution = 8 bits
   
   return (uint8)(adc);
 }

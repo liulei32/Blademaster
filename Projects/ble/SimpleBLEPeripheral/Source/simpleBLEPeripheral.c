@@ -91,8 +91,10 @@
  * COMPILE OPTIONS
  */
 //#define BLADEMASTER_DEBUG
-#define TEST_LED TRUE
-#define I2C_ENABLE
+//#define TEST_LED
+#define POWER_ON_MEASURE
+//#define CONNECT_MEASURE
+//#define SI7015
 
 
 /*********************************************************************
@@ -265,7 +267,7 @@ static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys );
 static char *bdAddr2Str ( uint8 *pAddr );
 #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
 
-#if (defined TEST_LED) && (TEST_LED == TRUE)
+#if defined (TEST_LED)
 static uint8 periodicR = 0;
 static uint8 periodicG = 85;
 static uint8 periodicB = 171;
@@ -458,9 +460,7 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
   HalAdcInit();
   
   // Initialize the LEDs
-#if defined (I2C_ENABLE)
   BMLedInit();
-#endif
   
 #if (defined HAL_LCD) && (HAL_LCD == TRUE)
 
@@ -549,6 +549,11 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
     
     // Start the Led Profile
     VOID Led_RegisterAppCBs( &keyFob_LedCBs);
+#ifdef POWER_ON_MEASURE
+    pmEnabler = 0x01;
+    Accel_SetParameter( PM_ENABLER, 1, &pmEnabler );
+    osal_start_timerEx( simpleBLEPeripheral_TaskID, KFD_PM_READ_EVT, pmSamplePeriod );
+#endif
       
     return ( events ^ SBP_START_DEVICE_EVT );
   }
@@ -625,23 +630,19 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
       uint8 pmRaw = pmRead();
       uint8 color[3];
       GetPMRGB(pmRaw, color);
-#if defined (I2C_ENABLE)
       BMShowColor(color[0], color[1], color[2], 0x08);
-#endif
       Accel_SetParameter(PM_RAW, sizeof ( uint8 ), &pmRaw);
       
       // Read temp data
-#if defined (I2C_ENABLE)
+#if defined (SI7015)
       int16 temperature = tempRead();
-      int8 tempToShow = (int8)(temperature/32-50);
-      //int16 temperature = tempReadADC();
+      int8 tempToShow = (int8)(temperature/32-396);
       BMShowDigit(tempToShow);  
       Accel_SetParameter(TEMP_VALUE, sizeof ( int16 ), &temperature);
 #endif
       
-      
       // Read humid data
-#if defined (I2C_ENABLE)
+#if defined (SI7015)
       uint8 humility = humRead();
       BMShowHum(humility/16+1);  
       Accel_SetParameter(HUMID_VALUE, sizeof ( uint8 ), &humility);
@@ -649,7 +650,7 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
     }
     else
     {
-        // Stop the acceleromter
+        // Stop the PM reader
       osal_stop_timerEx( simpleBLEPeripheral_TaskID, KFD_PM_READ_EVT);
     }
     return (events ^ KFD_PM_READ_EVT);
@@ -810,7 +811,12 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
         #if defined BLADEMASTER_DEBUG
           BMShowHum(2);
         #endif
-          
+        
+#ifdef CONNECT_MEASURE
+        pmEnabler = 0x01;
+        Accel_SetParameter( PM_ENABLER, 1, &pmEnabler );
+        osal_start_timerEx( simpleBLEPeripheral_TaskID, KFD_PM_READ_EVT, pmSamplePeriod );
+#endif  
         uint8 appConnect;
         General_GetParameter( APP_CONNECT , &appConnect );
         // Not connected before this
@@ -839,6 +845,13 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
       break;
     case GAPROLE_WAITING:
       {
+#ifdef CONNECT_MEASURE
+        pmEnabler = 0x00;
+        Accel_SetParameter( PM_ENABLER, 1, &pmEnabler );
+        osal_stop_timerEx( simpleBLEPeripheral_TaskID, KFD_PM_READ_EVT);
+        // Initialize the LEDs
+        BMLedInit();
+#endif
         HalLedSet(HAL_LED_2, HAL_LED_MODE_BLINK );
         uint8 writeValue = FALSE;
         General_SetParameter( ANCS_STATE, sizeof(uint8), &writeValue );
@@ -853,6 +866,13 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
 
     case GAPROLE_WAITING_AFTER_TIMEOUT:
       {
+#ifdef CONNECT_MEASURE
+        pmEnabler = 0x00;
+        Accel_SetParameter( PM_ENABLER, 1, &pmEnabler );
+        osal_stop_timerEx( simpleBLEPeripheral_TaskID, KFD_PM_READ_EVT);
+        // Initialize the LEDs
+        BMLedInit();
+#endif
         HalLedSet(HAL_LED_2, HAL_LED_MODE_BLINK );
         uint8 writeValue = FALSE;
         General_SetParameter( ANCS_STATE, sizeof(uint8), &writeValue );
@@ -937,7 +957,8 @@ static void performPeriodicTask( void )
   }
   
   //int16 temperature = tempRead();
-#if (defined TEST_LED) && (TEST_LED == TRUE) && (defined I2C_ENABLE)
+  BMShowDigit(battRead( ));
+#ifdef TEST_LED
   BMShowDigit(periodicR);
   BMShowColor(periodicR, periodicG, periodicB, 0x08);
   BMShowHum(periodicR%7);

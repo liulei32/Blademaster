@@ -65,7 +65,7 @@
 #define BRIGHTNESS_DIGIT 0x40
 #define BRIGHTNESS_SIGN 0x10
 #define BRIGHTNESS_GRP_DIGIT 0x80
-#define BRIGHTNESS_GRP_COLOR 0x08
+#define BRIGHTNESS_GRP_COLOR 0x10
 #define BRIGHTNESS_HUM 0x04
 #define BRIGHTNESS_GRP_HUM 0x08
 
@@ -796,9 +796,9 @@ int8 BMShowDigit(int8 num)
  ***************************************************************************************************/
 int8 BMShowColor(uint8 red, uint8 green, uint8 blue, uint8 brightness)
 {
-  red>>=4;
-  blue>>=4;
-  green>>=4;
+  red>>=3;
+  blue>>=3;
+  green>>=3;
   HalI2CInit(ADDRESS_COLOR_TLC59116, I2CCLOCK);
   uint8 wdata_color[25] = {0x80, 
                      0x01, 0x00, // Mode0, Mode1
