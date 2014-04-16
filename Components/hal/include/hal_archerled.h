@@ -78,7 +78,7 @@ extern "C"
 #define HAL_LED_DEFAULT_FLASH_COUNT   50
 #define HAL_LED_DEFAULT_FLASH_TIME    1000
 
-#define NUM_LED         3
+#define NUM_LED         2
 /*********************************************************************
  * TYPEDEFS
  */
@@ -124,6 +124,11 @@ extern uint8 HalLedGetState ( void );
 extern void ArcherLedSet(uint8 ledIndex, uint8 color, uint8 numBlinks, uint8 offsetTime, uint8 onTime, uint8 offTime);
 
 /*
+ * BM Battery LED Function
+ */
+extern void BMBattLedSet(uint8 color, uint8 flashing, uint8 onTime, uint8 offTime);
+
+/*
  * BM LED Initialize
  */
 extern void BMLedInit();
@@ -131,18 +136,22 @@ extern void BMLedInit();
 /*
  * BM LED Show Digit
  */
-int8 BMShowDigit(int8 num);
+void BMShowDigit(int8 num);
 
 /*
  * BM LED Show Color
  */
-int8 BMShowColor(uint8 red, uint8 green, uint8 blue, uint8 brightness);
+void BMShowColor(uint8 red, uint8 green, uint8 blue, uint8 brightness);
 
 /*
  * BM LED Show Hum
  */
-int8 BMShowHum(uint8 hum);
+void BMShowHum(uint8 hum);
 
+/*
+ * BM LED Show Batt
+ */
+void BMShowBatt(uint8 batt);
 /*********************************************************************
 *********************************************************************/
 

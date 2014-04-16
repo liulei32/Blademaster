@@ -84,7 +84,6 @@
 #include "cma3000d.h"
 #include "archeraccelerometer.h"
 #include "archerled.h"
-#include "archerbatt.h"
 #include "archergeneral.h"
 
 /*********************************************************************
@@ -92,9 +91,9 @@
  */
 //#define BLADEMASTER_DEBUG
 //#define TEST_LED
-#define POWER_ON_MEASURE
-//#define CONNECT_MEASURE
-//#define SI7015
+//#define POWER_ON_MEASURE
+#define CONNECT_MEASURE
+#define SI7015
 
 
 /*********************************************************************
@@ -154,7 +153,7 @@
 // How often (in ms) to read the accelerometer
 #define ACCEL_READ_PERIOD             50
 #define PM_READ_PERIOD                500
-
+   
 /*********************************************************************
  * TYPEDEFS
  */
@@ -404,8 +403,7 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
   General_AddService (GATT_ALL_SERVICES);     // General Profile
   Accel_AddService( GATT_ALL_SERVICES );      // Accelerometer Profile
   Led_AddService( GATT_ALL_SERVICES );        // Led Profile
-  Batt_AddService();
-
+  
 #if defined( CC2540_MINIDK )
 
   SK_AddService( GATT_ALL_SERVICES ); // Simple Keys Profile
@@ -457,7 +455,7 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
 #endif // #if defined( CC2540_MINIDK )
 
   // Initialize the ADC for battery reads
-  HalAdcInit();
+  HalAdcInit(); //TODO
   
   // Initialize the LEDs
   BMLedInit();
@@ -549,6 +547,7 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
     
     // Start the Led Profile
     VOID Led_RegisterAppCBs( &keyFob_LedCBs);
+    
 #ifdef POWER_ON_MEASURE
     pmEnabler = 0x01;
     Accel_SetParameter( PM_ENABLER, 1, &pmEnabler );
@@ -579,10 +578,16 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
     {
       osal_start_timerEx( simpleBLEPeripheral_TaskID, KFD_BATTERY_CHECK_EVT, BATTERY_CHECK_PERIOD );
     }
-
     // perform battery level check
-    Batt_MeasLevel( );
-
+    uint8 battVolt = battRead();
+    General_SetParameter( BATT_VOLT, sizeof(uint8), &battVolt );
+    uint8 newBattState = battUpdate(battVolt);
+    uint8 curBattState;
+    General_GetParameter( BATT_STATE, &curBattState );
+    if (curBattState != newBattState)
+    {
+      General_SetParameter( BATT_STATE, sizeof(uint8), &newBattState );    
+    }
     return (events ^ KFD_BATTERY_CHECK_EVT);
   }
   
@@ -957,7 +962,6 @@ static void performPeriodicTask( void )
   }
   
   //int16 temperature = tempRead();
-  BMShowDigit(battRead( ));
 #ifdef TEST_LED
   BMShowDigit(periodicR);
   BMShowColor(periodicR, periodicG, periodicB, 0x08);

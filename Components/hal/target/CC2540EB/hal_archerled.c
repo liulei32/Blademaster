@@ -66,8 +66,8 @@
 #define BRIGHTNESS_SIGN 0x10
 #define BRIGHTNESS_GRP_DIGIT 0x80
 #define BRIGHTNESS_GRP_COLOR 0x10
-#define BRIGHTNESS_HUM 0x04
-#define BRIGHTNESS_GRP_HUM 0x08
+#define BRIGHTNESS_HUM 0x10
+#define BRIGHTNESS_GRP_HUM 0x10
 
 
 #define I2CCLOCK i2cClock_123KHZ
@@ -96,9 +96,16 @@ typedef struct {
   uint8 offTime;
   uint8 next;
 } ArcherLedControl_t;
-
+// BM Flashing Led
+typedef struct {
+  uint8 color;
+  uint8 flashing;
+  uint8 onTime;
+  uint8 offTime;
+  uint8 next;
+} BMBattLedControl_t;
 static ArcherLedControl_t ledCtrl[NUM_LED];
-
+static BMBattLedControl_t battCtrl;
 
 
 /***************************************************************************************************
@@ -121,20 +128,26 @@ static uint8 preBlinkState;            // Original State before going to blink m
   
 const static uint16 onesPlace[10] = {0x07E0, 0x0180, 0x06D0, 0x03D0, 0x01B0, 0x0370, 0x0770, 0x01C0, 0x07F0, 0x03F0};
 const static uint16 tensPlace[10] = {0x380E, 0x0808, 0x300D, 0x180D, 0x080B, 0x1807, 0x3807, 0x080C, 0x380F, 0x180F};
-const static uint8 humByte0[7] = {0x00, 0x30, 0x30, 0x3C, 0x3C, 0x3F, 0xFF};
-const static uint8 humByte1[7] = {0x00, 0x00, 0x0C, 0x0C, 0x0F, 0x0F, 0x0F};
+const static uint8 humTableByte0[7] = {0x00, 0x30, 0x30, 0x3C, 0x3C, 0x3F, 0xFF};
+const static uint8 humTableByte1[7] = {0x00, 0x00, 0x0C, 0x0C, 0x0F, 0x0F, 0x0F};
+const static uint8 battTableByte[3] = {0x00, 0xC0, 0x30}; // Off, Green, Red
 
+static uint8 humByte0 = 0;
+static uint8 humByte1 = 0;
+static uint8 battByte = 0;
 
+static uint8 TLC59108Enable = 0;
 /***************************************************************************************************
  *                                            LOCAL FUNCTION
  ***************************************************************************************************/
 void ArcherLed1Update(void);
 void ArcherLed2Update(void);
-void ArcherLed3Update(void);
+void BMBattLedUpdate (void);
 #if (HAL_LED == TRUE)
 void HalLedUpdate (void);
 void HalLedOnOff (uint8 leds, uint8 mode);
 #endif /* HAL_LED */
+void BMSetTLC59108(uint8 enable, uint8 byte0, uint8 byte1);
 
 /***************************************************************************************************
  *                                            FUNCTIONS - API
@@ -170,29 +183,6 @@ void HalLedInit (void)
 
 void ArcherLedSet(uint8 ledIndex, uint8 color, uint8 numBlinks, uint8 offsetTime, uint8 onTime, uint8 offTime)
 {
-  /*
-  PERCFG &= ~0x10;             // Timer 4 Alternate location 1
-  P1DIR |= 0x01;               // P1_0 = output
-  P1SEL |= 0x01;               // P1_0 is peripheral function
-  P2SEL |= 0x10;               // Timer 4 has priority on Port 1
-  
-  //T4CTL &= ~0xE0;              // Timer 4 tick frequency
-  T4CTL |= 0xE0;              // Timer 4 tick frequency/128
-  T4CTL &= ~0x10;             // Stop timer 4 (if it was running)
-  T4CTL |= 0x04;              // Clear timer 4
-  T4CTL &= ~0x08;             // Disable Timer 4 overflow interrupts
-  T4CTL &= ~0x03;              // Timer 4 mode = 0 Free Run
-  
-  T4CCTL0 &= ~0x40;           // Disable channel 0 interrupts
-  T4CCTL0 |= 0x04;            // Ch0 mode = compare
-  T4CCTL0 |= 0x20;            // Ch0 output compare mode = clear output on compare, set on 0
-  
-  T4CC0 = offTime;
-  
-  T4CTL |= 0x10;
-  */
-  
-  
   if (ledIndex<=(NUM_LED-1)) // ledIndex is valid
   {
     ledCtrl[ledIndex].color = color;
@@ -220,11 +210,6 @@ void ArcherLedSet(uint8 ledIndex, uint8 color, uint8 numBlinks, uint8 offsetTime
       case 1:
       osal_stop_timerEx(Hal_TaskID, HAL_LED_BLINK_EVENT2);
       osal_start_timerEx(Hal_TaskID, HAL_LED_BLINK_EVENT2, (uint32)offsetTime*100);   // Schedule event
-      break;
-      
-      case 2:
-      osal_stop_timerEx(Hal_TaskID, HAL_LED_BLINK_EVENT3);
-      osal_start_timerEx(Hal_TaskID, HAL_LED_BLINK_EVENT3, (uint32)offsetTime*100);   // Schedule event
       break;
     }
   }
@@ -284,29 +269,36 @@ void ArcherLed2Update (void)
   }
 }
 
-void ArcherLed3Update (void)
+void BMBattLedSet(uint8 color, uint8 flashing, uint8 onTime, uint8 offTime)
 {
-  if (ledCtrl[2].next == 0)
-    HAL_TURN_OFF_LED3();
-  else 
-    HAL_TURN_ON_LED3();
+  battCtrl.color = color;
+  battCtrl.flashing = flashing;
+  battCtrl.onTime = onTime;
+  battCtrl.offTime = offTime;
+  battCtrl.next = color;
+
+  osal_stop_timerEx(Hal_TaskID, HAL_LED_BATT_EVENT);
+  osal_set_event( Hal_TaskID, HAL_LED_BATT_EVENT );   // Schedule event
+}
+
+void BMBattLedUpdate (void)
+{
+  BMShowBatt(battCtrl.next);
   
-  if (ledCtrl[2].next == 0) // Current command is to turn OFF
+  if (battCtrl.next == 0) // Current command is to turn OFF
   {
-    if (ledCtrl[2].onLeft != 0) // There is flashes left to turn it ON
+    if (battCtrl.flashing != 0) // There is flashes left to turn it ON
     {
-      ledCtrl[2].onLeft = ledCtrl[2].onLeft - 1;
-      ledCtrl[2].next = ledCtrl[2].color; // next command is to turn ON
-      osal_start_timerEx(Hal_TaskID, HAL_LED_BLINK_EVENT3, (uint32)ledCtrl[2].offTime*100);   /* Schedule event */
+      battCtrl.next = battCtrl.color; // next command is to turn ON
+      osal_start_timerEx(Hal_TaskID, HAL_LED_BATT_EVENT, (uint32)battCtrl.offTime*100);   /* Schedule event */
     }
   }
   else // Current command is to turn ON
   {
-    if (ledCtrl[2].offLeft != 0) // There is flashes left to turn it OFF
+    if (battCtrl.flashing != 0) // There is flashes left to turn it OFF
     {
-      ledCtrl[2].offLeft = ledCtrl[2].offLeft - 1;
-      ledCtrl[2].next = LEDCLR_OFF; // next command is to turn OFF
-      osal_start_timerEx(Hal_TaskID, HAL_LED_BLINK_EVENT3, (uint32)ledCtrl[2].onTime*100);   /* Schedule event */
+      battCtrl.next = LEDCLR_OFF; // next command is to turn OFF
+      osal_start_timerEx(Hal_TaskID, HAL_LED_BATT_EVENT, (uint32)battCtrl.onTime*100);   /* Schedule event */
     }
   }
 }
@@ -726,6 +718,7 @@ void BMLedInit()
   HalI2CInit(ADDRESS_COLOR_TLC59116, I2CCLOCK);
   HalI2CWrite(25, wdata_color);
   // Initialize TLC59108
+  TLC59108Enable = 0;
   uint8 wdata_hum[12] = {0x80,
                       0x11, 0x00,
                       BRIGHTNESS_HUM, BRIGHTNESS_HUM, BRIGHTNESS_HUM, BRIGHTNESS_HUM,
@@ -744,7 +737,7 @@ void BMLedInit()
  *
  * @return  none
  ***************************************************************************************************/
-int8 BMShowDigit(int8 num)
+void BMShowDigit(int8 num)
 {
   // Set Digits
   uint16 ledToSet = 0;
@@ -781,7 +774,6 @@ int8 BMShowDigit(int8 num)
   // Program digit
   HalI2CInit(ADDRESS_DIGIT_TLC59116, I2CCLOCK);
   HalI2CWrite(5, wdata);
-  return 0;
 }
 
 
@@ -794,7 +786,7 @@ int8 BMShowDigit(int8 num)
  *
  * @return  none
  ***************************************************************************************************/
-int8 BMShowColor(uint8 red, uint8 green, uint8 blue, uint8 brightness)
+void BMShowColor(uint8 red, uint8 green, uint8 blue, uint8 brightness)
 {
   red>>=3;
   blue>>=3;
@@ -806,9 +798,7 @@ int8 BMShowColor(uint8 red, uint8 green, uint8 blue, uint8 brightness)
                      brightness, 0x00, // Group Control
                      0x3F, 0x3F, 0x3F, 0x3F}; // LED output control
   HalI2CWrite(25, wdata_color);
-  return 0;
 }
-
 
 /***************************************************************************************************
  * @fn      BMShowHum
@@ -819,17 +809,56 @@ int8 BMShowColor(uint8 red, uint8 green, uint8 blue, uint8 brightness)
  *
  * @return  none
  ***************************************************************************************************/
-int8 BMShowHum(uint8 hum)
+void BMShowHum(uint8 hum)
 {
   if (hum>6)
     hum = 6;
-  // Turn ON humility TLC59108
-  uint8 wdata_on[2] = {0x00, 0x01}; // LED output control
-  HalI2CInit(ADDRESS_TLC59108, I2CCLOCK);
-  HalI2CWrite(2, wdata_on);
-  //
-  uint8 wdata_hum[3] = {0x8C, humByte0[hum], humByte1[hum]};
-  HalI2CInit(ADDRESS_TLC59108, I2CCLOCK);
-  HalI2CWrite(3, wdata_hum);
-  return 0;
+  humByte0 = humTableByte0[hum];
+  humByte1 = humTableByte1[hum];
+  BMSetTLC59108(1, humByte0, humByte1 | battByte);
+}
+
+
+/***************************************************************************************************
+ * @fn      BMShowBatt
+ *
+ * @brief   Set BM Battery LED
+ *
+ * @param   none
+ *
+ * @return  none
+ ***************************************************************************************************/
+void BMShowBatt(uint8 batt) // 0-Off 1-Green 2-Red
+{
+  if (batt>2)
+    batt = 0;
+  battByte = battTableByte[batt];
+  BMSetTLC59108(1, humByte0, humByte1 | battByte);
+}
+
+void BMSetTLC59108(uint8 enable, uint8 byte0, uint8 byte1)
+{
+  if ((enable == 1) && (TLC59108Enable == 0))
+  {
+    TLC59108Enable = 1;
+    // Turn ON TLC59108
+    uint8 wdata_on[2] = {0x00, 0x01}; // LED output control
+    HalI2CInit(ADDRESS_TLC59108, I2CCLOCK);
+    HalI2CWrite(2, wdata_on);
+  }
+  else if ((enable == 0) && (TLC59108Enable == 1))
+  {
+    TLC59108Enable = 0;
+    // Turn OFF TLC59108
+    uint8 wdata_on[2] = {0x00, 0x11}; // LED output control
+    HalI2CInit(ADDRESS_TLC59108, I2CCLOCK);
+    HalI2CWrite(2, wdata_on);
+  }
+  if (enable == 1)
+  {
+    // Write control bits
+    uint8 wdata_hum[3] = {0x8C, byte0, byte1};
+    HalI2CInit(ADDRESS_TLC59108, I2CCLOCK);
+    HalI2CWrite(3, wdata_hum);
+  }
 }

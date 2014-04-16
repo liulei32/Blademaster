@@ -17,7 +17,7 @@
  * CONSTANTS
  */
 
-#define SERVAPP_NUM_ATTR_SUPPORTED        14
+#define SERVAPP_NUM_ATTR_SUPPORTED        21
 
 /*********************************************************************
  * TYPEDEFS
@@ -57,6 +57,19 @@ CONST uint8 generalClockUUID[ATT_BT_UUID_SIZE] =
 { 
   LO_UINT16(GENERAL_CLOCK_UUID), HI_UINT16(GENERAL_CLOCK_UUID)
 };
+
+// Battery Voltage UUID
+CONST uint8 battVoltUUID[ATT_BT_UUID_SIZE] =
+{ 
+  LO_UINT16(BATT_VOLT_UUID), HI_UINT16(BATT_VOLT_UUID)
+};
+
+// Battery State UUID
+CONST uint8 battStateUUID[ATT_BT_UUID_SIZE] =
+{ 
+  LO_UINT16(BATT_STATE_UUID), HI_UINT16(BATT_STATE_UUID)
+};
+
 /*********************************************************************
  * EXTERNAL VARIABLES
  */
@@ -116,6 +129,27 @@ static uint32 generalClock = 0;
 
 // General Clock Characteristic user description
 static uint8 generalClockUserDesc[14] = "General Clock\0";
+
+// Battery Voltage Characteristic Properties
+static uint8 battVoltCharProps = GATT_PROP_READ;
+
+// Battery Voltage Characteristic Value
+static uint8 battVolt = 0;
+
+// Battery Voltage Characteristic user description
+static uint8 battVoltUserDesc[13] = "Batt Voltage\0";
+
+// Battery State Characteristic Properties
+static uint8 battStateCharProps = GATT_PROP_READ | GATT_PROP_NOTIFY;
+
+// Battery State Characteristics
+static uint8 battState;
+
+// Battery State Characteristic Configs
+static gattCharCfg_t battStateConfig[GATT_MAX_NUM_CONN];
+
+// Battery State Characteristic user descriptions
+static uint8 battStateCharUserDesc[11] = "Batt State\0";
 
 /*********************************************************************
  * Profile Attributes - Table
@@ -234,6 +268,61 @@ static gattAttribute_t generalAttrTbl[SERVAPP_NUM_ATTR_SUPPORTED] =
         (uint8*)generalClockUserDesc 
       },
       
+    // Batt Voltage Characteristic Declaration
+    { 
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ, 
+      0,
+      &battVoltCharProps 
+    },
+    
+      // Batt Voltage Characteristic Value
+      { 
+        { ATT_BT_UUID_SIZE, battVoltUUID },
+        GATT_PERMIT_READ,
+        0, 
+        (uint8 *)&battVolt
+      },
+      
+      // Batt Voltage User Description
+      { 
+        { ATT_BT_UUID_SIZE, charUserDescUUID },
+        GATT_PERMIT_READ, 
+        0,
+        (uint8*)battVoltUserDesc 
+      },
+      
+    // Batt State Characteristic Declaration
+    { 
+      { ATT_BT_UUID_SIZE, characterUUID },
+      GATT_PERMIT_READ, 
+      0,
+      &battStateCharProps 
+    },
+    
+      // Batt State Characteristic Value
+      { 
+        { ATT_BT_UUID_SIZE, battStateUUID },
+        GATT_PERMIT_READ, 
+        0, 
+        (uint8 *)&battState
+      },
+      
+      // Batt State Characteristic configuration
+      { 
+        { ATT_BT_UUID_SIZE, clientCharCfgUUID },
+        GATT_PERMIT_READ | GATT_PERMIT_WRITE, 
+        0, 
+        (uint8 *)battStateConfig 
+      },
+
+      // Batt State Characteristic User Description
+      { 
+        { ATT_BT_UUID_SIZE, charUserDescUUID },
+        GATT_PERMIT_READ, 
+        0, 
+        battStateCharUserDesc
+      },  
 };
 
 
@@ -280,6 +369,7 @@ bStatus_t General_AddService( uint32 services )
 
   // Initialize Client Characteristic Configuration attributes
   GATTServApp_InitCharCfg( INVALID_CONNHANDLE, ancsStateConfig );
+  GATTServApp_InitCharCfg( INVALID_CONNHANDLE, battStateConfig );
 
   // Register with Link DB to receive link status change callback
   VOID linkDB_Register( general_HandleConnStatusCB );  
@@ -377,6 +467,32 @@ bStatus_t General_SetParameter( uint8 param, uint8 len, void *value )
       }
       break;
     
+    case BATT_VOLT:
+      if ( len == sizeof(uint8) ) 
+      {      
+        battVolt = *((uint8*)value);
+      }
+      else
+      {
+        ret = bleInvalidRange;
+      }
+      break;
+    
+    case BATT_STATE:
+      if ( len == sizeof(uint8) ) 
+      {      
+        battState = *((uint8*)value);
+        // See if Notification has been enabled
+        GATTServApp_ProcessCharCfg( battStateConfig, (uint8 *)&battState,
+                                    FALSE, generalAttrTbl, GATT_NUM_ATTRS( generalAttrTbl ),
+                                    INVALID_TASK_ID );
+      }
+      else
+      {
+        ret = bleInvalidRange;
+      }
+      break;
+      
     default:
       ret = INVALIDPARAMETER;
       break;
@@ -409,6 +525,10 @@ bStatus_t General_GetParameter( uint8 param, void *value )
       
     case ANCS_STATE:
       *((uint8*)value) = ancsState;
+      break;
+      
+    case BATT_STATE:
+      *((uint8*)value) = battState;
       break;
     
     default:
@@ -454,6 +574,8 @@ static uint8 general_ReadAttrCB( uint16 connHandle, gattAttribute_t *pAttr,
       case APP_CONNECT_UUID:
       case RSSI_VALUE_UUID:
       case ANCS_STATE_UUID:
+      case BATT_VOLT_UUID:
+      case BATT_STATE_UUID:
         *pLen = 1;
         pValue[0] = *pAttr->pValue;
         break;
@@ -594,7 +716,8 @@ static void general_HandleConnStatusCB( uint16 connHandle, uint8 changeType )
          ( ( changeType == LINKDB_STATUS_UPDATE_STATEFLAGS ) && 
            ( !linkDB_Up( connHandle ) ) ) )
     { 
-      //GATTServApp_InitCharCfg( connHandle, ancsMsgConfig );
+      GATTServApp_InitCharCfg( connHandle, ancsStateConfig );
+      GATTServApp_InitCharCfg( connHandle, battStateConfig );
     }
   }
 }

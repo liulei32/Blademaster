@@ -19,12 +19,16 @@ extern "C"
 #define RSSI_VALUE                    2  // RO uint8[8] - Profile Attribute value
 #define ANCS_STATE                    3  // Notification
 #define GENERAL_CLOCK                 4  // Clock
+#define BATT_VOLT                     6  // Battery ADC Value, = RealValue/2/3.3*127
+#define BATT_STATE                    7  // Battery State
   
 // Profile UUIDs
 #define APP_CONNECT_UUID              0xFFF1
 #define RSSI_VALUE_UUID               0xFFF2
 #define ANCS_STATE_UUID               0xFFF3
 #define GENERAL_CLOCK_UUID            0xFFF4
+#define BATT_VOLT_UUID                0xFFF6
+#define BATT_STATE_UUID               0xFFF7
   
 // General Service UUID
 #define GENERAL_SERVICE_UUID          0xFFF0

@@ -7,6 +7,8 @@ const static uint8 red[6] =   {0,   255, 255, 255, 153, 100};
 const static uint8 green[6] = {228, 255, 126, 0,   0,   0  };
 const static uint8 blue[6] =  {0,   0,   0,   0,   76,  120};
 
+static uint8 battState = BATT_NORMAL;
+
 void Wait4us(uint8 num)
 {
   uint8 target = T3CNT + num;
@@ -117,6 +119,57 @@ uint8 battRead( void )
   adc = HalAdcRead (5, HAL_ADC_RESOLUTION_8); // smkSENSOR, Resolution = 8 bits
   
   return (uint8)(adc);
+}
+
+uint8 battUpdate( uint8 battVolt )
+{
+  if (P0_4 == 1) // Non PlugIn
+  {
+    if (battVolt < 35) // Debug mode
+    {
+      if (battState != BATT_DEBUG)
+      {
+        battState = BATT_DEBUG;
+        BMBattLedSet(1, 1, 5, 20);
+      }
+    }
+    else if (battVolt < 70) // Low battery
+    {
+      if (battState != BATT_LOW)
+      {
+        battState = BATT_LOW;
+        BMBattLedSet(2, 1, 10, 20);
+      }
+    }
+    else
+    {
+      if (battState != BATT_NORMAL)
+      {
+        battState = BATT_NORMAL;
+        BMBattLedSet(0, 0, 0, 0);
+      }
+    }
+  }
+  else // PlugIn
+  {
+    if (P0_3 == 1) // Charge done
+    {
+      if (battState != BATT_FULL)
+      {
+        battState = BATT_FULL;
+        BMBattLedSet(1, 0, 0, 0);
+      }
+    }
+    else
+    { 
+      if (battState != BATT_CHARGING)// Charging
+      {
+        battState = BATT_CHARGING;
+        BMBattLedSet(2, 0, 0, 0);
+      }
+    }
+  }
+  return battState;
 }
 
 void GetPMRGB(uint8 pmRaw, uint8 *color)

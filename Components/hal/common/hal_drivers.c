@@ -78,7 +78,7 @@ uint8 Hal_TaskID;
 extern void HalLedUpdate( void ); /* Notes: This for internal only so it shouldn't be in hal_led.h */
 extern void ArcherLed1Update( void ); /* Notes: This for internal only so it shouldn't be in hal_led.h */
 extern void ArcherLed2Update( void ); /* Notes: This for internal only so it shouldn't be in hal_led.h */
-extern void ArcherLed3Update( void ); /* Notes: This for internal only so it shouldn't be in hal_led.h */
+extern void BMBattLedUpdate( void ); /* Notes: This for internal only so it shouldn't be in hal_led.h */
 
 /**************************************************************************************************
  * @fn      Hal_Init
@@ -224,10 +224,10 @@ uint16 Hal_ProcessEvent( uint8 task_id, uint16 events )
     return events ^ HAL_LED_BLINK_EVENT2;
   }  
   
-  if ( events & HAL_LED_BLINK_EVENT3 )
+  if ( events & HAL_LED_BATT_EVENT )
   {
-    ArcherLed3Update();
-    return events ^ HAL_LED_BLINK_EVENT3;
+    BMBattLedUpdate();
+    return events ^ HAL_LED_BATT_EVENT;
   }
   
   if ( events & HAL_CLOCK_EVENT )

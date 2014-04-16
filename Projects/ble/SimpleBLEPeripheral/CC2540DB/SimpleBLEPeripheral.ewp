@@ -8866,12 +8866,6 @@
       <name>$PROJ_DIR$\..\..\Profiles\ArcherAccelerometer\archeraccelerometer.h</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\..\Profiles\ArcherBatt\archerbatt.c</name>
-    </file>
-    <file>
-      <name>$PROJ_DIR$\..\..\Profiles\ArcherBatt\archerbatt.h</name>
-    </file>
-    <file>
       <name>$PROJ_DIR$\..\..\Profiles\ArcherGeneral\archergeneral.c</name>
     </file>
     <file>

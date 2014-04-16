@@ -55,7 +55,7 @@ extern "C"
  **************************************************************************************************/
 
 #define HAL_CLOCK_EVENT                     0x0800
-#define HAL_LED_BLINK_EVENT3                0x0400
+#define HAL_LED_BATT_EVENT                  0x0400
 #define HAL_LED_BLINK_EVENT2                0x0200
 #define HAL_LED_BLINK_EVENT1                0x0100
 #define HAL_BUZZER_EVENT                    0x0080
